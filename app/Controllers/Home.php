@@ -19,6 +19,19 @@ class Home extends ResourceController
 
 	}
 
+	function respond($data = null, ?int $status = null, string $message = '')
+	{
+		if($status == null || $status == 200 || $status == 201){
+			
+			$resp = [
+				"status" => $status == null ? 200 : $status,
+				"results" => $data
+			];
+			return parent::respond($resp, $status, $message);
+
+		} else return parent::respond($data, $status, $message);
+	}
+
     public function index()
     {
 
