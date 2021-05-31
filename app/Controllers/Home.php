@@ -3,6 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\AttendanceModel;
+use App\Models\TeamMateModel;
+use App\Models\TeamModel;
+use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\RESTful\ResourceController;
 
@@ -137,9 +140,9 @@ class Home extends ResourceController
 
 	public function attendance() {
 
-		if(!$this->auth->is_logged_in()) {
+		/*if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}
+		}*/
 
 		$AttendanceModel = new AttendanceModel();
 
@@ -159,9 +162,77 @@ class Home extends ResourceController
 
 		$user_id = $this->auth->user_id();
 
-		$attendances = $AttendanceModel->where('created_at >', $st)->where('user_id', $user_id)->findAll();
+		$team_id = 1;
 
-		return $this->respond(count($attendances));
+		$TeamModel = new TeamModel();
+
+		$team = $TeamModel->where('id', $team_id)->first();
+
+		if(is_null($team)) {
+			return $this->failNotFound();
+		}
+
+		$TeamMateModel = new TeamMateModel();
+
+		$teammates = $TeamMateModel->where('team_id', $team_id)->findAll();
+
+		$teammate_ids = array_map(function($element) {
+			return $element['user_id'];
+		}, $teammates);
+
+		$user_ids = [];
+
+		array_push($user_ids, $team['leader_id']);
+
+		$user_ids = array_merge($user_ids, $teammate_ids);
+
+		$UserModel = new UserModel();
+
+		$attendances = $UserModel->select('a.id as id, u.id as user_id, u.name as user_name, u.birthday as user_birthday, a.created_at as date, a.type as type')
+									   ->distinct()
+									   ->from('user as u')
+									   ->join('attendance as a', '(a.user_id = u.id AND a.created_at >"'.$st->toDateTimeString().'")', 'left outer')
+									   ->whereIn('u.id', $user_ids)
+									   ->findAll();
+
+		return $this->respond($attendances);
+		
+
+	}
+
+	public function teammates() {
+
+		/*if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}*/
+
+		$TeamMateModel = new TeamMateModel();
+
+		$team_id =1;
+
+		$teammates = $TeamMateModel->where('team_id', $team_id)
+		
+		
+									->findAll();
+
+		return $this->respond($teammates);
+
+		
+
+	}
+
+	public function teams() {
+
+		/*if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}*/
+
+		$TeamModel = new TeamModel();
+
+		$teams = $TeamModel->findAll();
+
+		return $this->respond($teams);
+
 		
 
 	}

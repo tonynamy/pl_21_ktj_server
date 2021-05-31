@@ -32,11 +32,13 @@ $routes->setAutoRoute(true);
 
 // We get a performance increase by specifying the default
 // route since we don't have to scan directories.
-$routes->get('/', 'Home::index');
-$routes->get('/check', 'Home::check');
-$routes->get('/attendance_on', 'Home::attendance_on');
-$routes->get('/attendance_off', 'Home::attendance_off');
-$routes->get('/attendance', 'Home::attendance');
+$routes->add('/', 'Home::index');
+$routes->add('/check', 'Home::check');
+$routes->add('/attendance_on', 'Home::attendance_on');
+$routes->add('/attendance_off', 'Home::attendance_off');
+$routes->add('/attendance', 'Home::attendance');
+$routes->add('/teams', 'Home::teams');
+$routes->add('/teammates', 'Home::teammates');
 
 /*
  * --------------------------------------------------------------------
