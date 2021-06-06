@@ -43,7 +43,7 @@ class Home extends ResourceController
 
 		
 		if($this->auth->login($username, $password)) {
-			return $this->respond([])->setcookie("jwt_token", $this->auth->createJWT());
+			return $this->respond([])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
 		} else {
 			return $this->failForbidden();
 		}
@@ -140,9 +140,9 @@ class Home extends ResourceController
 
 	public function attendance() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
+		}
 
 		$AttendanceModel = new AttendanceModel();
 
@@ -202,9 +202,9 @@ class Home extends ResourceController
 
 	public function teammates() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
+		}
 
 		$TeamMateModel = new TeamMateModel();
 
@@ -223,10 +223,10 @@ class Home extends ResourceController
 
 	public function teams() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
-
+		}
+		
 		$TeamModel = new TeamModel();
 
 		$teams = $TeamModel->findAll();
