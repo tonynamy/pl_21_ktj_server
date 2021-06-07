@@ -39,10 +39,9 @@ class Home extends ResourceController
     {
 
 		$username = $_POST['username'] ?? null;
-		$password = $_POST['password'] ?? null;
 
 		
-		if($this->auth->login($username, $password)) {
+		if($this->auth->login($username)) {
 			return $this->respond([])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
 		} else {
 			return $this->failForbidden();
