@@ -199,6 +199,44 @@ class Home extends ResourceController
 		
 
 	}
+	
+	public function attendance_add() {
+		
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+		
+		$UserModel = new UserModel();
+		$AttendanceModel = new AttendanceModel();
+		
+		$user_id = $_POST['user_id'] ?? null;
+		$type = $_POST['type'] ?? null;
+		
+		if(is_null($user_id) || is_null($type)) {
+			return $this->failValidationError();
+		}
+		
+		if(is_null($UserModel->where('id', $user_id)->first())) {
+			return $this->failValidationError();
+		}
+		
+		if($type < 0 || $type > 1) {
+			return $this->failValidationError();
+		}
+		
+		$insert_id = $AttendanceModel->insert([
+			'user_id' => $user_id,
+			'type' => $type
+		]);
+		
+		if(is_null($insert_id)) {
+			return $this->failServerError();
+		} else {
+			return $this->respondCreated();
+		}
+		
+		
+	}
 
 	public function teammates() {
 
