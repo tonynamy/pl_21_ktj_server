@@ -39,11 +39,10 @@ class Home extends ResourceController
     {
 
 		$username = $_POST['username'] ?? null;
-		$password = $_POST['password'] ?? null;
 
 		
-		if($this->auth->login($username, $password)) {
-			return $this->respond([])->setcookie("jwt_token", $this->auth->createJWT());
+		if($this->auth->login($username)) {
+			return $this->respond([])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
 		} else {
 			return $this->failForbidden();
 		}
@@ -58,6 +57,44 @@ class Home extends ResourceController
 		}
 
 
+	}
+	
+	public function add_user() {
+		
+		$username = $_POST['username'] ?? null;
+		$birthday = $_POST['birthday'] ?? null;
+		
+		if(is_null($username) || is_null($birthday)) {
+			return $this->failValidationError();
+		}
+		
+		$UserModel = new UserModel();
+		
+		if(!is_null($UserModel->where('username', $username)->first())) {
+			return $this->failResourceExists();
+		}
+		
+		try {
+			
+			$birthday_t = Time::createFromFormat('Y-m-j', $birthday);
+			
+			$insert_id = $UserModel->insert([
+				'username' => $username,
+				'name' => $username,
+				'birthday' => $birthday_t
+			]);
+
+			if(is_null($insert_id)) {
+				return $this->failServerError();
+			} else {
+				return $this->respondCreated();
+			}
+			
+			
+		} catch(\Exception $e) {
+			return $this->failValidationError($e->getMessage());
+		}
+		
 	}
 
     public function attendance_on() {
@@ -140,9 +177,9 @@ class Home extends ResourceController
 
 	public function attendance() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
+		}
 
 		$AttendanceModel = new AttendanceModel();
 
@@ -199,12 +236,50 @@ class Home extends ResourceController
 		
 
 	}
+	
+	public function attendance_add() {
+		
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+		
+		$UserModel = new UserModel();
+		$AttendanceModel = new AttendanceModel();
+		
+		$user_id = $_POST['user_id'] ?? null;
+		$type = $_POST['type'] ?? null;
+		
+		if(is_null($user_id) || is_null($type)) {
+			return $this->failValidationError();
+		}
+		
+		if(is_null($UserModel->where('id', $user_id)->first())) {
+			return $this->failValidationError();
+		}
+		
+		if($type < 0 || $type > 1) {
+			return $this->failValidationError();
+		}
+		
+		$insert_id = $AttendanceModel->insert([
+			'user_id' => $user_id,
+			'type' => $type
+		]);
+		
+		if(is_null($insert_id)) {
+			return $this->failServerError();
+		} else {
+			return $this->respondCreated();
+		}
+		
+		
+	}
 
 	public function teammates() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
+		}
 
 		$TeamMateModel = new TeamMateModel();
 
@@ -223,10 +298,10 @@ class Home extends ResourceController
 
 	public function teams() {
 
-		/*if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
-		}*/
-
+		}
+		
 		$TeamModel = new TeamModel();
 
 		$teams = $TeamModel->findAll();

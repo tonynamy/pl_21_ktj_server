@@ -37,8 +37,10 @@ $routes->add('/check', 'Home::check');
 $routes->add('/attendance_on', 'Home::attendance_on');
 $routes->add('/attendance_off', 'Home::attendance_off');
 $routes->add('/attendance', 'Home::attendance');
+$routes->add('/attendance_add', 'Home::attendance_add');
 $routes->add('/teams', 'Home::teams');
 $routes->add('/teammates', 'Home::teammates');
+$routes->add('/add_user', 'Home::add_user');
 
 /*
  * --------------------------------------------------------------------

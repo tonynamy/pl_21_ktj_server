@@ -40,9 +40,9 @@ class Authentication
 
     }
 
-    public function login($username, $password) {
+    public function login($username) {
 
-		if(is_null($username) || is_null($password)) {
+		if(is_null($username)) {
             $this->onLoginFailed();
 			return false;
 		}
@@ -54,16 +54,9 @@ class Authentication
 			return false;
 		}
 
-		if(password_verify($password, $row['password'])) {
-
-            $this->onLoginSuccess($row['id']);
-
-            return true;
-
-        } else {
-            $this->onLoginFailed();
-            return false;
-        }
+		$this->onLoginSuccess($row['id']);
+		
+		return true;
 
     }
 
