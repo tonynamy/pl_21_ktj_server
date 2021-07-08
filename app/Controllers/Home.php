@@ -424,6 +424,49 @@ class Home extends ResourceController
 
 	}
 
+	private function sort_array($array) {
+
+		sort($array);
+
+		return $array;
+	}
+
+	public function facility_info() {
+
+		$FacilityModel = new FacilityModel();
+
+		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
+								->first();
+
+		$data = [
+
+			'type' => [
+
+				'1' => '설비',
+				'2' => '전기',
+				'3' => '건축',
+				'4' => '기타'
+
+			],
+
+			'subcontractor' => implode(',', array_unique(explode(',', $info['subcontractor']))),
+
+			'building' => implode(',', $this->sort_array(explode(',', $info['building']))),
+
+			'floor' => implode(',', $this->sort_array(explode(',', $info['floor']))),
+
+			'spot' => implode(',', $this->sort_array(explode(',', $info['spot']))),
+
+
+
+
+		];
+
+		return $this->respond($data);
+
+
+
+	}
 
 
 }
