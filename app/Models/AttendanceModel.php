@@ -12,7 +12,7 @@ class AttendanceModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['user_id', 'type'];
+    protected $allowedFields = ['teammate_id', 'type', 'created_at'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';

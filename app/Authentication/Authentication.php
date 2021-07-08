@@ -13,6 +13,8 @@ class Authentication
 
     private $model;
 
+    private $user;
+
     public function init(\CodeIgniter\HTTP\IncomingRequest $request) {
 
         $this->model = new UserModel();
@@ -28,6 +30,8 @@ class Authentication
                 $this->user_id = $decoded->user_id;
                 $this->is_logged_in = true;
 
+                $this->user = $this->model->where('id', $this->user_id)->first();
+
             } catch (\Exception $e) {
 
                 $this->user_id = null;
@@ -40,14 +44,13 @@ class Authentication
 
     }
 
-    public function login($username) {
+    public function login($place_id, $username, $birthday) {
 
-		if(is_null($username)) {
-            $this->onLoginFailed();
-			return false;
-		}
-
-		$row = $this->model->where('username', $username)->first();
+		$row = $this->model->groupStart()
+                                ->orWhere('place_id', null)
+                                ->orWhere('place_id', $place_id)
+                            ->groupEnd()
+                            ->where('username', $username)->where('birthday', $birthday)->first();
 
 		if(is_null($row)) {
             $this->onLoginFailed();
@@ -55,19 +58,34 @@ class Authentication
 		}
 
 		$this->onLoginSuccess($row['id']);
-		
+
+        $this->user = $row;
+        		
 		return true;
 
+    }
+
+    public function checkMinimumLevel($level) {
+        return ($this->user['level'] ?? -1) >= $level;
     }
 
     private function onLoginFailed() {
         $this->user_id = null;
         $this->is_logged_in = false;
+        $this->level = null;
     }
 
     private function onLoginSuccess($user_id) {
         $this->user_id = $user_id;
         $this->is_logged_in = true;
+    }
+
+    public function user() {
+        return $this->user;
+    }
+
+    public function level() {
+        return $this->user['level'];
     }
 
     public function createJWT() {

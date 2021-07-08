@@ -12,7 +12,7 @@ class TeamMateModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['team_id', 'user_id'];
+    protected $allowedFields = ['team_id', 'name', 'birthday'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';

@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\AttendanceModel;
+use App\Models\FacilityModel;
+use App\Models\PlaceModel;
 use App\Models\TeamMateModel;
 use App\Models\TeamModel;
 use App\Models\UserModel;
@@ -37,12 +39,31 @@ class Home extends ResourceController
 
     public function index()
     {
-
+		$place_id = $_POST['place_id'] ?? null;
 		$username = $_POST['username'] ?? null;
+		$birthday = $_POST['birthday'] ?? null;
 
+		if (is_null($username) || is_null($birthday) ) {
+			return $this->failValidationError();
+		}		
 		
-		if($this->auth->login($username)) {
-			return $this->respond([])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
+		if($this->auth->login($place_id, $username, $birthday)) {
+
+			$PlaceModel = new PlaceModel();
+
+			$place = $PlaceModel->where('id', $this->auth->user()['place_id'])->first();
+
+			$TeamMateModel = new TeamMateModel();
+
+			$teammate = $TeamMateModel->where('name', $this->auth->user()['username'])->where('birthday', $this->auth->user()['birthday'])->first();
+
+			return $this->respond([
+				'place_id' => $place['id'] ?? "",
+				'place_name' => $place['name'] ?? "",
+				'team_id' => $teammate['team_id'] ?? "",
+				'user_name' => $this->auth->user()['username'],
+				'level' => intval($this->auth->level())
+			])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
 		} else {
 			return $this->failForbidden();
 		}
@@ -61,27 +82,31 @@ class Home extends ResourceController
 	
 	public function add_user() {
 		
+		$place_id = $_POST['place_id'] ?? null;
 		$username = $_POST['username'] ?? null;
 		$birthday = $_POST['birthday'] ?? null;
 		
 		if(is_null($username) || is_null($birthday)) {
 			return $this->failValidationError();
 		}
-		
+
+		$PlaceModel = new PlaceModel();		
 		$UserModel = new UserModel();
+
+		if(is_null($PlaceModel->where('id', $place_id)->first())) {
+			return $this->failValidationError();
+		}
 		
 		if(!is_null($UserModel->where('username', $username)->first())) {
 			return $this->failResourceExists();
 		}
 		
 		try {
-			
-			$birthday_t = Time::createFromFormat('Y-m-j', $birthday);
-			
+
 			$insert_id = $UserModel->insert([
+				'place_id' => $place_id,
 				'username' => $username,
-				'name' => $username,
-				'birthday' => $birthday_t
+				'birthday' => $birthday
 			]);
 
 			if(is_null($insert_id)) {
@@ -181,55 +206,34 @@ class Home extends ResourceController
 			return $this->failForbidden();
 		}
 
-		$AttendanceModel = new AttendanceModel();
+		$TeamModel = new TeamModel();
+		$TeamMateModel = new TeamMateModel();
+
+		$team_id = $_POST['team_id'];
+
+		if(is_null($team_id) || is_null($TeamModel->where('id', $team_id)->first())) {
+			return $this->failValidationError();
+		}
 
 		$now = Time::now();
 
 		$st = null;
 
-		if( $now <= Time::createFromTime(5, 0, 0)) {
+		if( $now->getTimestamp() <= Time::createFromTime(5, 0, 0)->getTimestamp()) {
 
-			$st = Time::now()->yesterday()->setHour(5, 0, 0)->setMinute(0)->setSecond(0);
+			$st = Time::now()->yesterday()->setHour(5)->setMinute(0)->setSecond(0);
 
 		} else {
 
-			$st = Time::now()->setHour(5, 0, 0)->setMinute(0)->setSecond(0);
+			$st = Time::now()->setHour(5)->setMinute(0)->setSecond(0);
 
 		}
 
-		$user_id = $this->auth->user_id();
-
-		$team_id = 1;
-
-		$TeamModel = new TeamModel();
-
-		$team = $TeamModel->where('id', $team_id)->first();
-
-		if(is_null($team)) {
-			return $this->failNotFound();
-		}
-
-		$TeamMateModel = new TeamMateModel();
-
-		$teammates = $TeamMateModel->where('team_id', $team_id)->findAll();
-
-		$teammate_ids = array_map(function($element) {
-			return $element['user_id'];
-		}, $teammates);
-
-		$user_ids = [];
-
-		array_push($user_ids, $team['leader_id']);
-
-		$user_ids = array_merge($user_ids, $teammate_ids);
-
-		$UserModel = new UserModel();
-
-		$attendances = $UserModel->select('a.id as id, u.id as user_id, u.name as user_name, u.birthday as user_birthday, a.created_at as date, a.type as type')
+		$attendances = $TeamMateModel->select('tm.id as id, tm.name as name, tm.birthday as birthday, a.created_at as date, a.type as type')
 									   ->distinct()
-									   ->from('user as u')
-									   ->join('attendance as a', '(a.user_id = u.id AND a.created_at >"'.$st->toDateTimeString().'")', 'left outer')
-									   ->whereIn('u.id', $user_ids)
+									   ->from('teammate as tm')
+									   ->join('attendance as a', '(a.teammate_id = tm.id and a.created_at >"'.$st->toDateTimeString().'")', 'left outer')
+									   ->where('tm.team_id', $team_id)
 									   ->findAll();
 
 		return $this->respond($attendances);
@@ -243,17 +247,17 @@ class Home extends ResourceController
 			return $this->failForbidden();
 		}
 		
-		$UserModel = new UserModel();
+		$TeamMateModel = new TeamMateModel();
 		$AttendanceModel = new AttendanceModel();
 		
-		$user_id = $_POST['user_id'] ?? null;
+		$teammate_id = $_POST['teammate_id'] ?? null;
 		$type = $_POST['type'] ?? null;
 		
-		if(is_null($user_id) || is_null($type)) {
+		if(is_null($teammate_id) || is_null($type)) {
 			return $this->failValidationError();
 		}
 		
-		if(is_null($UserModel->where('id', $user_id)->first())) {
+		if(is_null($TeamMateModel->where('id', $teammate_id)->first())) {
 			return $this->failValidationError();
 		}
 		
@@ -262,7 +266,7 @@ class Home extends ResourceController
 		}
 		
 		$insert_id = $AttendanceModel->insert([
-			'user_id' => $user_id,
+			'teammate_id' => $teammate_id,
 			'type' => $type
 		]);
 		
@@ -272,6 +276,55 @@ class Home extends ResourceController
 			return $this->respondCreated();
 		}
 		
+		
+	}
+
+	public function attendance_edit() {
+		
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$AttendanceModel = new AttendanceModel();
+
+		$teammate_id = $_POST['teammate_id'] ?? null;		
+		$type = $_POST['type'] ?? null;
+		$date = $_POST['date'] ?? null;
+
+		if(is_null($teammate_id) || is_null($teammate_id)) {
+			return $this->failValidationError();
+		}
+
+		if(is_null($type) || is_null($date)) {
+			return $this->failValidationError();
+		}
+
+		if($type < 0 || $type > 1) {
+			return $this->failValidationError();
+		}
+
+		$st = null;
+
+		if( Time::now() <= Time::createFromTime(5, 0, 0)) {
+
+			$st = Time::now()->yesterday()->setHour(5, 0, 0)->setMinute(0)->setSecond(0);
+
+		} else {
+
+			$st = Time::now()->setHour(5, 0, 0)->setMinute(0)->setSecond(0);
+
+		}
+
+		$AttendanceModel->where('created_at >', $st)
+						->where('teammate_id', $teammate_id)
+						->where('type', $type)
+						->set('created_at', $date)
+						->update();
+
+
+		return $this->respondUpdated();
+
+
 		
 	}
 
@@ -304,13 +357,73 @@ class Home extends ResourceController
 		
 		$TeamModel = new TeamModel();
 
-		$teams = $TeamModel->findAll();
+		$user = $this->auth->user();
+
+		if($user['place_id'] == null) {
+
+			$teams = $TeamModel->findAll();
+
+		} else {
+
+			$teams = $TeamModel->where('place_id', $user['place_id'])
+								->findAll();
+
+		}		
 
 		return $this->respond($teams);
 
 		
 
 	}
+
+	public function team_edit() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$user_id = $_POST['user_id'] ?? null;
+		$team_id = $_POST['team_id'] ?? null;
+
+		$UserModel = new UserModel();
+		$TeamMateModel = new TeamMateModel();
+		$TeamModel = new TeamModel();
+
+		$teammate = $TeamMateModel->where('id', $user_id)->first();
+		$new_team = $TeamModel->where('id', $team_id)->first();
+		$user = $UserModel->where('username', $teammate['name'])->first();
+
+		if(is_null($new_team)) {
+			return $this->failValidationError();
+		}
+
+		if(!is_null($user) && $user['place_id'] != $new_team['place_id']) {
+
+			$UserModel->where('username', $teammate['name'])
+						->set('place_id', $new_team['place_id'])
+						->update();
+		}
+
+
+
+		$TeamMateModel->where('id', $user_id)
+					->set('team_id', $team_id)
+					->update();
+
+		return $this->respondUpdated();
+
+	}
+
+	public function places() {
+
+		$PlaceModel = new PlaceModel();
+
+		$places = $PlaceModel->findAll();
+
+		return $this->respond($places);
+
+	}
+
 
 
 }

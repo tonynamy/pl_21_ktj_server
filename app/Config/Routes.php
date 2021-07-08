@@ -38,9 +38,13 @@ $routes->add('/attendance_on', 'Home::attendance_on');
 $routes->add('/attendance_off', 'Home::attendance_off');
 $routes->add('/attendance', 'Home::attendance');
 $routes->add('/attendance_add', 'Home::attendance_add');
+$routes->add('/attendance_edit', 'Home::attendance_edit');
 $routes->add('/teams', 'Home::teams');
+$routes->add('/team_edit', 'Home::team_edit');
 $routes->add('/teammates', 'Home::teammates');
 $routes->add('/add_user', 'Home::add_user');
+$routes->add('/places', 'Home::places');
+$routes->add('/facility_info', 'Home::facility_info');
 
 /*
  * --------------------------------------------------------------------

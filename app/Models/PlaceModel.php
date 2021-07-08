@@ -2,9 +2,9 @@
 
 use CodeIgniter\Model;
 
-class TeamModel extends Model {
+class PlaceModel extends Model {
 
-    protected $table      = 'team';
+    protected $table      = 'place';
     protected $primaryKey = 'id';
 
     protected $useAutoIncrement = true;
@@ -12,7 +12,7 @@ class TeamModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['name', 'place_id'];
+    protected $allowedFields = ['name'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';
