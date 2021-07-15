@@ -431,29 +431,48 @@ class Home extends ResourceController
 		return $array;
 	}
 
+	private function sort_floor_array($array) {
+
+		usort($array, function($a, $b) {
+
+			$aa = intval(rtrim($a, 'F'));
+			$bb = intval(rtrim($b, 'F'));
+
+			if($aa == $bb) {
+				return 0;
+			}
+
+			return ($aa < $bb) ? -1 : 1;
+
+		});
+
+		return $array;
+
+	}
+
 	public function facility_info() {
+		
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
 
 		$FacilityModel = new FacilityModel();
 
-		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
+		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
 								->first();
+
+
+		
 
 		$data = [
 
-			'type' => [
-
-				'1' => '설비',
-				'2' => '전기',
-				'3' => '건축',
-				'4' => '기타'
-
-			],
+			'type' => implode(',', $this->sort_array(explode(',', $info['type']))),
 
 			'subcontractor' => implode(',', array_unique(explode(',', $info['subcontractor']))),
 
 			'building' => implode(',', $this->sort_array(explode(',', $info['building']))),
 
-			'floor' => implode(',', $this->sort_array(explode(',', $info['floor']))),
+			'floor' => implode(',', $this->sort_floor_array(explode(',', $info['floor']))),
 
 			'spot' => implode(',', $this->sort_array(explode(',', $info['spot']))),
 
@@ -468,5 +487,59 @@ class Home extends ResourceController
 
 	}
 
+
+	public function facility_search() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$place_id = $_POST['place_id'] ?? null;
+		$serial = $_POST['serial'] ?? null;
+		$type = $_POST['type'] ?? null;
+		$subcontractor = $_POST['subcontractor'] ?? null;
+		$building = $_POST['building'] ?? null;
+		$floor = $_POST['floor'] ?? null;
+		$spot = $_POST['spot'] ?? null;
+
+		$FacilityModel = new FacilityModel();
+
+		if($place_id != $this->auth->user()['place_id'] ) {
+			return $this->failUnauthorized();
+		}
+
+		if($place_id != null) {
+			$FacilityModel->where('place_id', $place_id);
+		}
+
+		if($serial != null) {
+			$FacilityModel->like('serial', $serial);
+		}
+
+		if($type != null) {
+			$FacilityModel->where('type', $type);
+		}
+
+		if($subcontractor != null) {
+			$FacilityModel->where('subcontractor', $subcontractor);
+		}
+
+		if($building != null) {
+			$FacilityModel->where('building', $building);
+		}
+
+		if($floor != null) {
+			$FacilityModel->where('floor', $floor);
+		}
+
+		//die($floor);
+
+		if($spot != null) {
+			$FacilityModel->where('spot', $spot);
+		}
+
+		return $this->respond($FacilityModel->findAll());
+
+	}
 
 }

@@ -45,6 +45,7 @@ $routes->add('/teammates', 'Home::teammates');
 $routes->add('/add_user', 'Home::add_user');
 $routes->add('/places', 'Home::places');
 $routes->add('/facility_info', 'Home::facility_info');
+$routes->add('/facility_search', 'Home::facility_search');
 
 /*
  * --------------------------------------------------------------------
