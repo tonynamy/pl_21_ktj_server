@@ -12,7 +12,7 @@ class FacilityModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['place_id', 'serial', 'type', 'subcontractor', 'building', 'floor', 'spot', 'started_at', 'finished_at', 'edit_started_at', 'edit_finished_at', 'dis_started_at', 'dis_finished_at', 'expired_at'];
+    protected $allowedFields = ['place_id', 'serial', 'type', 'super_manager', 'purpose', 'subcontractor', 'building', 'floor', 'spot', 'started_at', 'finished_at', 'edit_started_at', 'edit_finished_at', 'dis_started_at', 'dis_finished_at', 'expired_at'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';

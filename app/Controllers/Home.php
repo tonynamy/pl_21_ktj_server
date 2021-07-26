@@ -10,6 +10,7 @@ use App\Models\TeamModel;
 use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\RESTful\ResourceController;
+use SebastianBergmann\CodeCoverage\Report\Html\Facade;
 
 class Home extends ResourceController
 {
@@ -532,13 +533,239 @@ class Home extends ResourceController
 			$FacilityModel->where('floor', $floor);
 		}
 
-		//die($floor);
-
 		if($spot != null) {
 			$FacilityModel->where('spot', $spot);
 		}
 
 		return $this->respond($FacilityModel->findAll());
+
+	}
+
+	public function facility() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$facility_id = $_POST['facility_id'] ?? null;
+
+		if($facility_id == null) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$facility = $FacilityModel->where('id', $facility_id)->first();
+
+		if($facility == null) {
+			return $this->failNotFound();
+		}
+
+		return $this->respond($facility);
+
+	}
+
+	public function facility_edit_state() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$state_type = $_POST['state_type'] ?? null;	
+
+		//해체완료dis_finished_at부터 설치시작started_at으로 (끝에서 앞으로) 날짜정보가 있는지 확인해나간다
+        //해체완료dis_finished_at이 있으면 해체완료 없으면 앞으로
+        //해체시작dis_started_at이 있으면 해체시작 없으면 앞으로
+        //수정완료edit_finished_at이 있으면 수정완료 없으면 앞으로
+        //수정시작edit_started_at이 있으면 수정시작 없으면 앞으로
+        //승인완료finished_at이 있으면 승인완료 없으면 앞으로
+        //설치중started_at이 있으면 설치중 없으면 설치전
+
+		$state_column = [
+			'created_at',
+			'started_at',
+			'finished_at',
+			'edit_started_at',
+			'edit_finished_at',
+			'dis_started_at',
+			'dis_finished_at',
+		];
+
+		if($id == null || $state_type == null || !is_numeric($state_type) || intval($state_type) < 0 || intval($state_type) >= count($state_column)) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+		
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$FacilityModel->where('id', $id);
+
+		$FacilityModel->set($state_column[$state_type], "IF(".$state_column[$state_type]." IS NULL, '".Time::now()->toDateTimeString()."', ".$state_column[$state_type].")", false);
+		
+		for ($i=$state_type+1; $i<count($state_column); $i++) {
+			$FacilityModel->set($state_column[$i], null);
+		}	
+
+		if($state_type < 2) {
+			$FacilityModel->set('expired_at', null);
+		}
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
+
+	}
+
+	public function facility_edit_expired_at() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$_expired_at = $_POST['expired_at'] ?? null;
+
+		$expired_at = null;
+
+		try {
+
+			$expired_at = Time::parse($_expired_at);
+
+		} catch(\Exception $e) {
+			return $this->failValidationError();
+		}
+
+		if($id == null || $expired_at == null) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+		
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$FacilityModel->where('id', $id);
+
+		$FacilityModel->set('expired_at', $expired_at);
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
+
+	}
+
+	public function facility_edit_super_manager() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$super_manager = $_POST['super_manager'] ?? null;
+
+		if($id == null) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+		
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$FacilityModel->where('id', $id);
+
+		$FacilityModel->set('super_manager', $super_manager);
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
+
+	}
+
+	public function facility_edit_purpose() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$purpose = $_POST['purpose'] ?? null;
+
+		if($id == null) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+		
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$FacilityModel->where('id', $id);
+
+		$FacilityModel->set('purpose', $purpose);
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
 
 	}
 
