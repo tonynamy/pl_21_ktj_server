@@ -51,6 +51,7 @@ $routes->add('/facility_edit_state', 'Home::facility_edit_state');
 $routes->add('/facility_edit_expired_at', 'Home::facility_edit_expired_at');
 $routes->add('/facility_edit_super_manager', 'Home::facility_edit_super_manager');
 $routes->add('/facility_edit_purpose', 'Home::facility_edit_purpose');
+$routes->add('/facility_edit_taskplan', 'Home::facility_edit_taskplan');
 
 /*
  * --------------------------------------------------------------------

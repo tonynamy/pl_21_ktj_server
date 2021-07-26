@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\AttendanceModel;
 use App\Models\FacilityModel;
 use App\Models\PlaceModel;
+use App\Models\TaskPlanModel;
 use App\Models\TeamMateModel;
 use App\Models\TeamModel;
 use App\Models\UserModel;
@@ -756,6 +757,59 @@ class Home extends ResourceController
 		try {
 
 			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
+
+	}
+
+	public function facility_edit_taskplan() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$facility_id = $_POST['facility_id'] ?? null;
+		$team_id = $_POST['team_id'] ?? null;
+		$plan = $_POST['plan'] ?? null;
+
+		if($facility_id == null || $team_id == null || $plan == null) {
+			return $this->failValidationError();
+		}
+
+		$TeamModel = new TeamModel();
+		$TaskPlanModel = new TaskPlanModel();
+		
+		if($this->auth->user()['place_id'] != null && is_null($TeamModel->where('place_id', $this->auth->user()['place_id'])->where('id', $team_id)->first()) ) {
+			return $this->failForbidden();
+		}
+
+		$taskplan = $TaskPlanModel->where('facility_id', $facility_id)->where('team_id', $team_id)->first();
+
+		$success = true;
+
+		try {
+
+			if($taskplan == null) {
+
+				$success = $TaskPlanModel->insert([
+					'facility_id' => $facility_id,
+					'team_id' => $team_id,
+					'plan' => $plan,
+				]);
+			
+			} else {
+
+				$success = $TaskPlanModel->where('facility_id', $facility_id)->where('team_id', $team_id)->set('plan', $plan)->update();
+
+			}
 
 		} catch(\Exception $e) {
 
