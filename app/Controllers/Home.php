@@ -11,6 +11,7 @@ use App\Models\TeamModel;
 use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\RESTful\ResourceController;
+use PDO;
 use SebastianBergmann\CodeCoverage\Report\Html\Facade;
 
 class Home extends ResourceController
@@ -452,7 +453,7 @@ class Home extends ResourceController
 
 	}
 
-	public function facility_info() {
+	public function facility_search_info() {
 		
 		if(!$this->auth->is_logged_in()) {
 			return $this->failForbidden();
@@ -567,6 +568,66 @@ class Home extends ResourceController
 		}
 
 		return $this->respond($facility);
+
+	}
+
+	public function facility_info() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failForbidden();
+		}
+
+		$place_id = $_POST['place_id'] ?? null;
+
+		if($this->auth->user()['place_id'] != null && $this->auth->user()['place_id'] != $place_id ) {
+			return $this->failForbidden();
+		}
+
+		$FacilityModel = new FacilityModel();
+
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$target_time = Time::now()->addDays(14);
+
+		$expire_facilities = $FacilityModel->select('facility.*, taskplan.plan as taskplan, team.name as team_name')
+											->where('expired_at < ', $target_time)
+											->join('taskplan', 'facility.id = taskplan.facility_id')
+											->join('team', 'team.id = taskplan.team_id')
+											->findAll();
+
+		if($this->auth->user()['place_id'] != null ) {
+			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		$facilities_with_taskplan = $FacilityModel->select('facility.*, taskplan.plan as taskplan, team.name as team_name')
+													->join('taskplan', 'facility.id = taskplan.facility_id')
+													->join('team', 'team.id = taskplan.team_id')
+													->findAll();
+
+		$construct_planned_facilities = array_values(array_filter($facilities_with_taskplan, function($facility) {
+			return $facility['taskplan'] == 1;
+		}));
+
+		$edit_planned_facilities = array_values(array_filter($facilities_with_taskplan, function($facility) {
+			return $facility['taskplan'] == 2;
+		}));
+
+		$destruct_planned_facilities = array_values(array_filter($facilities_with_taskplan, function($facility) {
+			return $facility['taskplan'] == 3;
+		}));
+
+		$data = [
+
+			'expire' => $expire_facilities,
+			'construct' => $construct_planned_facilities,
+			'destruct' => $destruct_planned_facilities,
+			'edit' => $edit_planned_facilities,
+
+		];
+
+		return $this->respond($data);
 
 	}
 

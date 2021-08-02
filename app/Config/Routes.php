@@ -44,7 +44,7 @@ $routes->add('/team_edit', 'Home::team_edit');
 $routes->add('/teammates', 'Home::teammates');
 $routes->add('/add_user', 'Home::add_user');
 $routes->add('/places', 'Home::places');
-$routes->add('/facility_info', 'Home::facility_info');
+$routes->add('/facility_search_info', 'Home::facility_search_info');
 $routes->add('/facility_search', 'Home::facility_search');
 $routes->add('/facility', 'Home::facility');
 $routes->add('/facility_edit_state', 'Home::facility_edit_state');
@@ -52,6 +52,7 @@ $routes->add('/facility_edit_expired_at', 'Home::facility_edit_expired_at');
 $routes->add('/facility_edit_super_manager', 'Home::facility_edit_super_manager');
 $routes->add('/facility_edit_purpose', 'Home::facility_edit_purpose');
 $routes->add('/facility_edit_taskplan', 'Home::facility_edit_taskplan');
+$routes->add('/facility_info', 'Home::facility_info');
 
 /*
  * --------------------------------------------------------------------
