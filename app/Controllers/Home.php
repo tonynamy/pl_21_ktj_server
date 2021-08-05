@@ -42,34 +42,58 @@ class Home extends ResourceController
 
     public function index()
     {
-		$place_id = $_POST['place_id'] ?? null;
-		$username = $_POST['username'] ?? null;
-		$birthday = $_POST['birthday'] ?? null;
+      $place_id = $_POST['place_id'] ?? null;
+      $username = $_POST['username'] ?? null;
+      $birthday = $_POST['birthday'] ?? null;
 
-		if (is_null($username) || is_null($birthday) ) {
-			return $this->failValidationError();
-		}		
-		
-		if($this->auth->login($place_id, $username, $birthday)) {
+      if(is_null($username) || is_null($birthday)) {
+         return $this->failValidationError();
+      }
 
-			$PlaceModel = new PlaceModel();
+      //추가한 부분
+      $FacilityModel = new FacilityModel();
 
-			$place = $PlaceModel->where('id', $this->auth->user()['place_id'])->first();
+      if($place_id != null) {
+         $FacilityModel->where('place_id', $place_id);
+      }
+      ///추가한 부분
 
-			$TeamMateModel = new TeamMateModel();
+      if($this->auth->login($place_id, $username, $birthday)) {
 
-			$teammate = $TeamMateModel->where('name', $this->auth->user()['username'])->where('birthday', $this->auth->user()['birthday'])->first();
+         $PlaceModel = new PlaceModel();
 
-			return $this->respond([
-				'place_id' => $place['id'] ?? "",
-				'place_name' => $place['name'] ?? "",
-				'team_id' => $teammate['team_id'] ?? "",
-				'user_name' => $this->auth->user()['username'],
-				'level' => intval($this->auth->level())
-			])->setCookie("jwt_token", $this->auth->createJWT(), 86500);
-		} else {
-			return $this->failForbidden();
-		}
+         $place = $PlaceModel->where('id', $this->auth->user()['place_id'])->first();
+
+         $TeamMateModel = new TeamMateModel();
+
+         $teammate = $TeamMateModel->where('name', $this->auth->user()['username'])->where('birthday', $this->auth->user()['birthday'])->first();
+
+         return $this->respond([
+            'place_id' => $place['id'] ?? "",
+            'place_name' => $place['name'] ?? "",
+            'team_id' => $teammate['team_id'] ?? "",
+            'user_name' => $this->auth->user()['username'],
+            'level' => intval($this->auth->level())
+         ])->setcookie("jwt_token", $this->auth->createJWT(), 86500);
+      
+      //else if 부분 추가
+      } else if(!is_null($FacilityModel->like('super_manager', $username)->first())) {
+
+         $PlaceModel = new PlaceModel();
+
+         $place = $PlaceModel->where('id', $place_id)->first();
+
+         return $this->respond([
+            'place_id' => $place['id'] ?? "",
+            'place_name' => $place['name'] ?? "",
+            'team_id' => null,
+            'user_name' => $username,
+            'level' => -1
+         ])->setcookie("jwt_token", $this->auth->createJWT(true, $username), 86500);
+
+      } else {
+         return $this->failForbidden();
+      }
     }
 
 	public function check() {
@@ -455,17 +479,21 @@ class Home extends ResourceController
 
 	public function facility_search_info() {
 		
-		if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in(true) && !$this->auth->is_logged_in(false)) {
 			return $this->failForbidden();
 		}
 
 		$FacilityModel = new FacilityModel();
 
-		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
-								->first();
-
-
+		$FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot');
 		
+		if($this->auth->is_logged_in(true)) {
+
+			$FacilityModel->like('super_manager', $this->auth->supermanager());
+
+		}
+
+		$info = $FacilityModel->first();		
 
 		$data = [
 
@@ -493,8 +521,8 @@ class Home extends ResourceController
 
 	public function facility_search() {
 
-		if(!$this->auth->is_logged_in()) {
-			return $this->failForbidden();
+		if(!$this->auth->is_logged_in(false) && !$this->auth->is_logged_in(true)) {
+			return $this->failUnauthorized();
 		}
 
 		$place_id = $_POST['place_id'] ?? null;
@@ -507,7 +535,7 @@ class Home extends ResourceController
 
 		$FacilityModel = new FacilityModel();
 
-		if($place_id != $this->auth->user()['place_id'] ) {
+		if($this->auth->is_logged_in() && $place_id != $this->auth->user()['place_id'] ) {
 			return $this->failUnauthorized();
 		}
 
@@ -524,7 +552,7 @@ class Home extends ResourceController
 		}
 
 		if($subcontractor != null) {
-			$FacilityModel->where('subcontractor', $subcontractor);
+			$FacilityModel->like('subcontractor', $subcontractor);
 		}
 
 		if($building != null) {
@@ -539,13 +567,19 @@ class Home extends ResourceController
 			$FacilityModel->where('spot', $spot);
 		}
 
+		if($this->auth->is_logged_in(true)) {
+
+			$FacilityModel->like('super_manager', $this->auth->supermanager());
+
+		}
+
 		return $this->respond($FacilityModel->findAll());
 
 	}
 
 	public function facility() {
 
-		if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in(true) && !$this->auth->is_logged_in(false)) {
 			return $this->failForbidden();
 		}
 
@@ -557,8 +591,14 @@ class Home extends ResourceController
 
 		$FacilityModel = new FacilityModel();
 
-		if($this->auth->user()['place_id'] != null ) {
+		if($this->auth->is_logged_in(false) && $this->auth->user()['place_id'] != null ) {
 			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		if($this->auth->is_logged_in(true)) {
+
+			$FacilityModel->like('super_manager', $this->auth->supermanager());
+
 		}
 
 		$facility = $FacilityModel->where('id', $facility_id)->first();
@@ -883,5 +923,100 @@ class Home extends ResourceController
 
 
 	}
+
+	//새롭게추가
+	public function facility_team_taskplan() {
+
+		if(!$this->auth->is_logged_in()) {
+		   return $this->failForbidden();
+		}
+  
+		$team_id = $_POST['team_id'] ?? null;
+  
+		$TaskPlanModel = new TaskPlanModel();
+		$TaskPlanModel->where('team_id', $team_id);
+  
+		$taskplan = $TaskPlanModel->select('facility.*, taskplan.plan as taskplan')
+							 ->join('facility', 'facility.id = taskplan.facility_id')
+							 ->findAll();
+		
+		return $this->respond($taskplan);
+	 }
+  
+	 public function super_manager_info() {
+		
+		$place_id = $_POST['place_id'] ?? null;
+  
+		$FacilityModel = new FacilityModel();
+  
+		if($place_id != null) {
+		   $FacilityModel->where('place_id', $place_id);
+		}
+  
+		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT super_manager) as super_manager')
+						  ->first();
+		
+  
+		return $this->respond($info);
+	 }
+  
+	 public function user_info() {
+		
+		$place_id = $_POST['place_id'] ?? null;
+  
+		$UserModel = new UserModel();
+		$UserModel->where('level !=', 4);
+		
+		if($place_id != $this->auth->user()['place_id']) {
+		   return $this->failUnauthorized();
+		}
+		
+		if($place_id != null) {
+		   $UserModel->where('place_id', $place_id);
+		}
+  
+		$user = $UserModel->findAll();
+		
+		return $this->respond($user);
+	 }
+  
+	 public function user_edit_level() {
+  
+		if(!$this->auth->is_logged_in()) {
+		   return $this->failForbidden();
+		}
+  
+		$id = $_POST['id'] ?? null;
+		$level = $_POST['level'] ?? null;
+  
+		if($id == null) {
+		   return $this->failValidationError();
+		}
+  
+		$UserModel = new UserModel();
+  
+		if($this->auth->user()['place_id'] != null) {
+		   $UserModel->where('place_id', $this->auth->user()['place_id']);
+		}
+  
+		$UserModel->where('id', $id);
+  
+		$UserModel->set('level', $level);
+  
+		$success = true;
+  
+		try {
+  
+		   $success = $UserModel->update();
+  
+		} catch(\Exception $e) {
+  
+		   $success = false;
+  
+		}
+  
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+	 }
 
 }

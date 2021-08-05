@@ -54,6 +54,12 @@ $routes->add('/facility_edit_purpose', 'Home::facility_edit_purpose');
 $routes->add('/facility_edit_taskplan', 'Home::facility_edit_taskplan');
 $routes->add('/facility_info', 'Home::facility_info');
 
+//새롭게추가
+$routes->add('/facility_team_taskplan', 'Home::facility_team_taskplan');
+$routes->add('/super_manager_info', 'Home::super_manager_info');
+$routes->add('/user_info', 'Home::user_info');
+$routes->add('/user_edit_level', 'Home::user_edit_level');
+
 /*
  * --------------------------------------------------------------------
  * Additional Routing

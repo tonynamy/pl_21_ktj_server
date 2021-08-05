@@ -15,6 +15,8 @@ class Authentication
 
     private $user;
 
+    private $supermanager;
+
     public function init(\CodeIgniter\HTTP\IncomingRequest $request) {
 
         $this->model = new UserModel();
@@ -29,6 +31,8 @@ class Authentication
 
                 $this->user_id = $decoded->user_id;
                 $this->is_logged_in = true;
+
+                $this->supermanager = $decoded->supermanager ?? null;
 
                 $this->user = $this->model->where('id', $this->user_id)->first();
 
@@ -88,7 +92,7 @@ class Authentication
         return $this->user['level'];
     }
 
-    public function createJWT() {
+    public function createJWT($guest=false, $supermanager="") {
 
         if($this->is_logged_in) {
             $token_info = [
@@ -98,6 +102,18 @@ class Authentication
             $jwt = JWT::encode($token_info, $this->JWT_KEY);
 
             return $jwt;
+
+        } else if($guest) {
+
+            $token_info = [
+                'user_id' => -1,
+                'supermanager' => $supermanager,
+            ];
+    
+            $jwt = JWT::encode($token_info, $this->JWT_KEY);
+
+            return $jwt;
+            
         }
         else {
             return "";
@@ -106,12 +122,20 @@ class Authentication
         
     }
 
-    public function is_logged_in() {
-        return $this->is_logged_in;
+    public function is_logged_in($guest=false) {
+        if($guest) {
+            return $this->is_logged_in && $this->user_id < 0;
+        } else {
+            return $this->is_logged_in && $this->user_id > 0;
+        }
     }
 
     public function user_id() {
         return $this->user_id;
+    }
+
+    public function supermanager() {
+        return $this->supermanager;
     }
 
 }
