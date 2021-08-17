@@ -483,6 +483,8 @@ class Home extends ResourceController
 			return $this->failForbidden();
 		}
 
+		$super_manager = $_POST['super_manager'] ?? null;
+
 		$FacilityModel = new FacilityModel();
 
 		$FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot');
@@ -491,6 +493,8 @@ class Home extends ResourceController
 
 			$FacilityModel->like('super_manager', $this->auth->supermanager());
 
+		} else if($super_manager != null) {
+			$FacilityModel->like('super_manager', $super_manager);
 		}
 
 		$info = $FacilityModel->first();		
@@ -532,6 +536,7 @@ class Home extends ResourceController
 		$building = $_POST['building'] ?? null;
 		$floor = $_POST['floor'] ?? null;
 		$spot = $_POST['spot'] ?? null;
+		$super_manager = $_POST['super_manager'] ?? null;
 
 		$FacilityModel = new FacilityModel();
 
@@ -565,6 +570,10 @@ class Home extends ResourceController
 
 		if($spot != null) {
 			$FacilityModel->where('spot', $spot);
+		}
+
+		if($super_manager != null) {
+			$FacilityModel->like('super_manager', $super_manager);
 		}
 
 		if($this->auth->is_logged_in(true)) {
