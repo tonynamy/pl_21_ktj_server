@@ -12,7 +12,7 @@ class TaskPlanModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['facility_id', 'team_id', 'plan'];
+    protected $allowedFields = ['facility_id', 'team_id', 'type'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';

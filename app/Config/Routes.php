@@ -32,33 +32,34 @@ $routes->setAutoRoute(true);
 
 // We get a performance increase by specifying the default
 // route since we don't have to scan directories.
+
 $routes->add('/', 'Home::index');
-$routes->add('/check', 'Home::check');
-$routes->add('/attendance_on', 'Home::attendance_on');
-$routes->add('/attendance_off', 'Home::attendance_off');
+$routes->add('/auth_check', 'Home::auth_check');
+$routes->add('/place', 'Home::place');
+$routes->add('/place_add', 'Home::place_add');
+$routes->add('/place_edit', 'Home::place_edit');
+$routes->add('/user', 'Home::user');
+$routes->add('/user_add', 'Home::user_add');
+$routes->add('/user_edit_level', 'Home::user_edit_level');
+$routes->add('/user_edit_password', 'Home::user_edit_password');
+$routes->add('/user_delete', 'Home::user_delete');
+$routes->add('/team', 'Home::team');
 $routes->add('/attendance', 'Home::attendance');
 $routes->add('/attendance_add', 'Home::attendance_add');
 $routes->add('/attendance_edit', 'Home::attendance_edit');
-$routes->add('/teams', 'Home::teams');
-$routes->add('/team_edit', 'Home::team_edit');
-$routes->add('/teammates', 'Home::teammates');
-$routes->add('/add_user', 'Home::add_user');
-$routes->add('/places', 'Home::places');
+$routes->add('/attendance_edit_team', 'Home::attendance_edit_team');
+$routes->add('/facility', 'Home::facility');
 $routes->add('/facility_search_info', 'Home::facility_search_info');
 $routes->add('/facility_search', 'Home::facility_search');
-$routes->add('/facility', 'Home::facility');
 $routes->add('/facility_edit_state', 'Home::facility_edit_state');
-$routes->add('/facility_edit_expired_at', 'Home::facility_edit_expired_at');
 $routes->add('/facility_edit_super_manager', 'Home::facility_edit_super_manager');
 $routes->add('/facility_edit_purpose', 'Home::facility_edit_purpose');
-$routes->add('/facility_edit_taskplan', 'Home::facility_edit_taskplan');
-$routes->add('/facility_info', 'Home::facility_info');
-
-//새롭게추가
-$routes->add('/facility_team_taskplan', 'Home::facility_team_taskplan');
-$routes->add('/super_manager_info', 'Home::super_manager_info');
-$routes->add('/user_info', 'Home::user_info');
-$routes->add('/user_edit_level', 'Home::user_edit_level');
+$routes->add('/facility_edit_expired_at', 'Home::facility_edit_expired_at');
+$routes->add('/taskplan', 'Home::taskplan');
+$routes->add('/taskplan_team', 'Home::taskplan_team');
+$routes->add('/taskplan_edit', 'Home::taskplan_edit');
+$routes->add('/taskplan_delete', 'Home::taskplan_delete');
+$routes->add('/super_manager', 'Home::super_manager');
 
 /*
  * --------------------------------------------------------------------
