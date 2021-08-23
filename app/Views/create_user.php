@@ -2,6 +2,7 @@
 
 <?= $this->section('content') ?>
 
+
 <form method="POST">
 
     <div class="uiframe" style="margin:0 auto; width:400px">
@@ -22,18 +23,19 @@
         </div>
         
         <div style="display:flex; align-items:center">
-            <label style="width:130px">아이디</label>
-            <input type="text" name="name" placeholder="이름" value="<?= old('name'); ?>">
+            <label style="width:130px">이름</label>
+            <input type="text" name="name" value="<?= old('name'); ?>">
+        </div>
+        
+
+        <div style="margin-top:8px">
+            <label style="width:130px">생년월일</label>
+            <div class="ui calendar" id="standard_calendar" data-type="date" data-date="1971-01-01">
+            </div>
         </div>
 
-        <div style="display:flex; align-items:center">
-            <label style="width:130px">패스워드</label>
-            <input type="password" name="birthday" placeholder="생년월일 (예 740101)" value="<?= old('birthday'); ?>">
-        </div>
-
-        <div style="display:flex; justify-content:flex-end; align-items:flex-end; text-align:bottom;">
-            <a href="fm/create_user" style="color:#5599DD; margin-right:24px; margin-bottom:4px">사용자생성</a>
-            <button class="bluebutton" type="submit" formaction="fm/login" style="width:80px">로그인</button>
+        <div align="right">
+            <button class="bluebutton" type="submit" style="width:80px">생성</button>
         </div>
 
     </div>

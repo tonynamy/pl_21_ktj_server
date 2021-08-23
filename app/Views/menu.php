@@ -2,31 +2,26 @@
 
 <?= $this->section('content') ?>
 
-<table class="ui definition table">
-  <thead>
-    <tr><th></th>
-    <th>메뉴 이동</th>
-  </tr></thead>
-  <tbody>
-    <tr>
-        <td>등록</td>
-        <td>
-            <div class="ui buttons">
-                <a href="/register_team" class="ui button">팀 등록</a>
-                <button class="ui button">도면 등록</button>
-            </div>
-        </td>
-    </tr>
-    <tr>
-        <td>등록</td>
-        <td>
-            <div class="ui buttons">
-                <button class="ui button">출퇴근 조회</button>
-                <button class="ui button">현장 조회</button>
-            </div>
-        </td>
-    </tr>
-</tbody></table>
+
+    <div class="uiframe" style="margin:0 auto; width:500px">
+
+        <div style="margin-bottom:8px">
+            <label><?= $login_info ?></label>
+        </div>
+
+        <div style="display:flex; align-items:center">
+            <label style="width:50px">등록</label>
+            <button class="bluebutton" style="width:150px" onclick="location.href='/fm/add_team'">팀 등록</button>
+            <button class="bluebutton" style="width:150px" onclick="location.href='/fm/add_facility'">도면 등록</button>
+        </div>
+
+        <div style="margin-bottom:8px; display:flex; align-items:center">
+            <label style="width:50px">조회</label>
+            <button class="bluebutton" style="width:150px" onclick="location.href='/fm/view_attendance'">출퇴근 조회</button>
+            <button class="bluebutton" style="width:150px">현장 조회</button>
+        </div>
+
+    </div>
 
 
 <?= $this->endSection() ?>

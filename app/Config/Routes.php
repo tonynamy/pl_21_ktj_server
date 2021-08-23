@@ -22,7 +22,7 @@ $routes->setDefaultController('Index');
 $routes->setDefaultMethod('index');
 $routes->setTranslateURIDashes(false);
 $routes->set404Override();
-$routes->setAutoRoute(true);
+$routes->setAutoRoute(false);
 
 /*
  * --------------------------------------------------------------------
@@ -33,9 +33,27 @@ $routes->setAutoRoute(true);
 // We get a performance increase by specifying the default
 // route since we don't have to scan directories.
 
-$routes->add('/login', 'Index::login');
-$routes->add('/menu', 'Index::menu');
-$routes->add('/register_team', 'Index::register_team');
+//웹서비스
+$routes->group('fm', function($routes)
+{
+   $routes->add('', 'FMWebService::index');
+   $routes->add('login', 'FMWebService::login');
+   $routes->add('create_user', 'FMWebService::create_user');
+   $routes->add('menu', 'FMWebService::menu');
+   $routes->add('add_team', 'FMWebService::add_team');
+   $routes->add('load_team_excel', 'FMWebService::load_team_excel');
+   $routes->add('parse_team_data', 'FMWebService::parse_team_data');
+   $routes->add('add_facility', 'FMWebService::add_facility');
+   $routes->add('load_facility_excel', 'FMWebService::load_facility_excel');
+   $routes->add('parse_facility_data', 'FMWebService::parse_facility_data');
+
+   $routes->add('view_attendance', 'FMWebService::view_attendance');
+   $routes->add('view_attendance/(:num)', 'FMWebService::view_attendance/$1', 				['as' => 'view_attendance_team']);
+   $routes->add('view_attendance/(:num)/(:num)', 'FMWebService::view_attendance/$1/$2', 	['as' => 'view_attendance']);
+
+   $routes->add('selet_team', 'FMWebService::selet_team');
+   $routes->add('save_attendance_button', 'FMWebService::save_attendance_button');
+});
 
 
 // API

@@ -5,11 +5,11 @@ use Firebase\JWT\JWT;
 
 class Authentication
 {
-
     private $is_logged_in = false;
     private $user_id = null;
+    private $login_place_id = null;     //추가
 
-    private $JWT_KEY = "WOd9iOaBVa_fj7NQrpUw4j9y4ycZ3SmUHwH-5ItyvF8";
+    private $JWT_KEY = "MJYa1yyR439vCUZo6BbxP4Ox5Mcmr906Je2Dn2Lds-o";
 
     private $model;
 
@@ -24,12 +24,13 @@ class Authentication
         $cookie = $request->getCookie("jwt_token");
 
         if(!is_null($cookie)) {
-            
-            try {
 
+            try {
+                
                 $decoded = JWT::decode($cookie, $this->JWT_KEY, ['HS256']);
 
                 $this->user_id = $decoded->user_id;
+                $this->login_place_id = $decoded->login_place_id;   //추가
                 $this->is_logged_in = true;
 
                 $this->supermanager = $decoded->supermanager ?? null;
@@ -40,38 +41,38 @@ class Authentication
 
                 $this->user_id = null;
                 $this->is_logged_in = false;
-
             }
-
-        }
-
+        } 
 
     }
 
     public function login($place_id, $username, $birthday) {
 
-		$row = $this->model->groupStart()
-                                ->orWhere('place_id', null)
-                                ->orWhere('place_id', $place_id)
+		$row = $this->model->groupstart()
+                            ->orwhere('place_id', null)
+                            ->orwhere('place_id', $place_id)
                             ->groupEnd()
-                            ->where('username', $username)->where('birthday', $birthday)->first();
-
+                            ->where('username', $username)->where('birthday', $birthday)
+                            ->first();
+        
 		if(is_null($row)) {
             $this->onLoginFailed();
 			return false;
 		}
-
-		$this->onLoginSuccess($row['id']);
+        
+        $this->onLoginSuccess($row['id'], $place_id);   //, $place_id추가
 
         $this->user = $row;
-        		
-		return true;
+
+        return true;
 
     }
 
+    /*
     public function checkMinimumLevel($level) {
-        return ($this->user['level'] ?? -1) >= $level;
+        return ($this->user['level'] ?? -1) >= $level;      <--주석처리
     }
+    */
 
     private function onLoginFailed() {
         $this->user_id = null;
@@ -79,8 +80,9 @@ class Authentication
         $this->level = null;
     }
 
-    private function onLoginSuccess($user_id) {
+    private function onLoginSuccess($user_id, $login_place_id) {    //, $login_place_id추가
         $this->user_id = $user_id;
+        $this->login_place_id = $login_place_id;    //추가
         $this->is_logged_in = true;
     }
 
@@ -96,30 +98,29 @@ class Authentication
 
         if($this->is_logged_in) {
             $token_info = [
-                'user_id' => $this->user_id
+                'user_id' => $this->user_id,
+                'login_place_id' => $this->login_place_id,  //추가
             ];
-    
+
             $jwt = JWT::encode($token_info, $this->JWT_KEY);
 
             return $jwt;
 
         } else if($guest) {
-
+            
             $token_info = [
                 'user_id' => -1,
                 'supermanager' => $supermanager,
+                'login_place_id' => $this->login_place_id,  //추가
             ];
-    
+
             $jwt = JWT::encode($token_info, $this->JWT_KEY);
 
             return $jwt;
-            
-        }
-        else {
+
+        } else {
             return "";
         }
-
-        
     }
 
     public function is_logged_in($guest=false) {
@@ -136,6 +137,11 @@ class Authentication
 
     public function supermanager() {
         return $this->supermanager;
+    }
+    
+    //추가
+    public function login_place_id() {
+        return $this->login_place_id;
     }
 
 }
