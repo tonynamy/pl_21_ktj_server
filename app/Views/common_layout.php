@@ -2,25 +2,29 @@
 
 <html>
 
-
     <head>
-    
+
+        <title>FMENC 비계관리 웹서비스</title>
+        <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="http://49.247.24.170/fm">
+        <meta property="og:title" content="FMENC 비계관리 웹서비스">
+        <meta property="og:description" content="FMENC 비계관리를 위한 웹서비스 페이지입니다.">
+        <meta property="og:image" content="/static/fmenc_thumbnail.jpg">
+
+
         <!-- You MUST include jQuery before Fomantic -->
         <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.8/dist/semantic.min.css">
         <script src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.8.8/dist/semantic.min.js"></script>
-
+        <script src="/static/tablesort.js"></script>
 
 
         <style>
-            
-            div {
-                padding-top: 4px;
-                padding-bottom: 4px;
-            }
             .uiframe {
-                padding-top: 8px;
-                padding-bottom: 8px;
+                padding-top: 16px;
+                padding-bottom: 16px;
                 padding-left: 16px;
                 padding-right: 16px;
                 border-radius: 8px;
@@ -66,12 +70,20 @@
                 color: #FFFFFF;
                 background:#4488BB;
             }
+            .filletbutton {
+                height:30px;
+                padding: 0px 12px 0px 12px;
+                border-radius: 15px;
+            }
             label {
                 color: #666666;
                 font-weight: bold;
             }
             .bluelabel {
                 color: #5599DD;
+            }
+            .normalfont {
+                font-weight: normal;
             }
             .excel {
                 width: 100%;
@@ -80,88 +92,33 @@
                 border-collapse: collapse;
             }
             .excel td {
+                font-weight: normal;
                 border: 1px solid #AAAAAA;
             }
-            select {
-                outline: none;
-            }
-
-            .dropbtn {
-                background-color: #04AA6D;
-                color: white;
-                padding: 16px;
-                font-size: 16px;
-                border: none;
-            }
-
-            /* The container <div> - needed to position the dropdown content */
-            .dropdown {
-                position: relative;
-                display: inline-block;
-            }
-
-            /* Dropdown Content (Hidden by Default) */
-            .dropdown-content {
-                display: none;
-                position: absolute;
-                background-color: #f1f1f1;
-                min-width: 160px;
-                box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-                z-index: 1;
-            }
-
-            /* Links inside the dropdown */
-            .dropdown-content a {
-                color: black;
-                padding: 12px 16px;
-                text-decoration: none;
-                display: block;
-            }
-
-                /* Change color of dropdown links on hover */
-            .dropdown-content a:hover {background-color: #ddd;}
-
-                /* Show the dropdown menu on hover */
-            .dropdown:hover .dropdown-content {display: block;}
-
-                /* Change the background color of the dropdown button when the dropdown content is shown */
-            .dropdown:hover .dropbtn {background-color: #3e8e41;}
-
 
         </style>
 
     </head>
 
-    <body>
+    <body style="height:100%; overflow-x: auto;">
 
-        <div class="ui form" style="width:100%; padding-top:16px">
-
+        <div class="ui form" style="width:100%; height:100%;">
             <?= $this->renderSection('content') ?>
-
         </div>
 
         <script type="text/javascript">
-
-            $('#standard_calendar').calendar({
-                startMode: 'year',
-                type: 'date', 
-                text: {
-                    months: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
-                    monthsShort: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
-                }
-            });
-
-            $('.ui.dropdown').dropdown();
 
             <?php $alert = session()->getFlashdata('alert'); ?>
 
             <?php if(!is_null($alert)) : ?>
                 
-            $(document).ready(function() {
-                alert("<?= $alert ?>");
-            });
-            
+                $(document).ready(function() {
+                    alert("<?= $alert ?>");
+                });
+                
             <?php endif ?>
+
+            $('.ui.dropdown').dropdown();
 
         </script>
 

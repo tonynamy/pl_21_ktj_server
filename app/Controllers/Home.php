@@ -67,7 +67,7 @@ class Home extends ResourceController
 		if(is_null($username) || $username == '' || is_null($birthday)) {
 			return $this->failValidationError();
 		}
-
+		
 		$FacilityModel = new FacilityModel();
 
 		if($place_id != null) {
@@ -292,7 +292,7 @@ class Home extends ResourceController
 		if($place_id != null) {
 			$UserModel->where('place_id', $place_id);
 		} else {
-			//return $this->failValidationError(); <- 출시후에는 다시 살림
+			return $this->failValidationError();
 		}
 
 		$UserModel->where('id', $id);
@@ -404,9 +404,9 @@ class Home extends ResourceController
 		}
 
 		if(!is_null($team_id) && $team_id != '') {
-			$teams = $TeamModel->where('id !=', $team_id)->findAll();
+			$teams = $TeamModel->orderBy('name', 'ASC')->where('id !=', $team_id)->findAll();
 		} else {
-			$teams = $TeamModel->findAll();
+			$teams = $TeamModel->orderBy('name', 'ASC')->findAll();
 		}
 
 		if($teams == null) {
@@ -497,13 +497,21 @@ class Home extends ResourceController
 		}
 
 		$attendances = $TeamMateModel->select('tm.id as id, tm.name as name, tm.birthday as birthday, a.created_at as date, a.type as type')
-                            	  		->distinct()
-                          		  		->from('teammate as tm')
-                         	     		->join('attendance as a', '(a.teammate_id = tm.id and a.created_at >"'.$this->setTime()->toDateTimeString().'")', 'left outer')
-                          	    		->where('tm.team_id', $team_id)
-                              			->findAll();
-
-      return $this->respond($attendances);
+									->orderBy('tm.name', 'ASC')
+                            	  	->distinct()
+                          		  	->from('teammate as tm')
+                         	     	->join('attendance as a', '(a.teammate_id = tm.id and a.created_at >"'.$this->setTime()->toDateTimeString().'")', 'left outer')
+                          	    	->where('tm.team_id', $team_id)
+                              		->findAll();
+		
+		/*
+		$sortArr = array();
+		foreach($attendances as $value) {
+			$sortArr[] = $value['name'];
+		}
+		array_multisort($attendances, SORT_ASC, $sortArr);
+		*/
+		return $this->respond($attendances);
 
 	}
 
@@ -654,7 +662,7 @@ class Home extends ResourceController
 
 		if($team_id != null) {
 
-			$teammate = $TeamMateModel->where('team_id', $team_id)->countAllResults();
+			//$teammate = $TeamMateModel->where('team_id', $team_id)->countAllResults();
 
 			$attendance = $AttendanceModel->select('teammate.name as name')
 											->join('teammate', 'attendance.teammate_id = teammate.id and teammate.team_id = "' . $team_id . '"')
@@ -662,9 +670,9 @@ class Home extends ResourceController
 											->where('attendance.created_at >', $this->setTime()->toDateTimeString())
 											->countAllResults();
 		
-			$facility = $FacilityModel->select('facility.*, ' .$teammate. ' as teammate, ' .$attendance.' as attendance')
-									->where('facility.id', $facility_id)
-									->first();
+			$facility = $FacilityModel->where('facility.id', $facility_id)->first();
+
+			$facility['attendance'] = $attendance;
 
 		} else if(!is_null($TaskPlanModel->where('facility_id', $facility_id)->first())) {
 
@@ -725,6 +733,12 @@ class Home extends ResourceController
 		$place_id = $_POST['place_id'] ?? null;
 		$super_manager = $_POST['super_manager'] ?? null;
 
+		$type = $_POST['type'] ?? null;
+		$subcontractor = $_POST['subcontractor'] ?? null;
+		$building = $_POST['building'] ?? null;
+		$floor = $_POST['floor'] ?? null;
+		$spot = $_POST['spot'] ?? null;
+
 		$FacilityModel = new FacilityModel();
 		
 		if($place_id != null) {
@@ -734,6 +748,28 @@ class Home extends ResourceController
 		if(is_null($FacilityModel->first())) {
 			return $this->failNotFound();
 		}
+
+		if($type != null) {
+			$FacilityModel->where('type', $type);
+		}
+
+		if($subcontractor != null) {
+			$FacilityModel->like('subcontractor', $subcontractor);
+		}
+
+		if($building != null) {
+			$FacilityModel->where('building', $building);
+		}
+
+		if($floor != null) {
+			$FacilityModel->where('floor', $floor);
+		}
+
+		if($spot != null) {
+			$FacilityModel->where('spot', $spot);
+		}
+
+
 
 		$FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
 						->where('place_id', $place_id);
@@ -760,7 +796,6 @@ class Home extends ResourceController
 
 		return $this->respond($data);
 	}
-
 
 	public function facility_search() {
 		
@@ -816,8 +851,10 @@ class Home extends ResourceController
 		if($this->auth->is_logged_in(true)) {
 			$FacilityModel->like('super_manager', $this->auth->supermanager());
 		}
-
-		return $this->respond($FacilityModel->findAll());
+		
+		$facility_result = $FacilityModel->orderBy('serial', 'ASC')->findAll();
+		
+		return $this->respond($facility_result);
 
 	}
 
@@ -1205,26 +1242,31 @@ class Home extends ResourceController
 
 	public function test() {
 	
-		$facility_id = 1;
-		$team_id = 1;
-
-		$FacilityModel = new FacilityModel();
+		$TeamModel = new TeamModel();
 		$TeamMateModel = new TeamMateModel();
-		$AttendanceModel = new AttendanceModel();
 
-		$teammate = $TeamMateModel->where('team_id', $team_id)->countAllResults();
+		$team_id = 24;
 
-		$attendance = $AttendanceModel->select('teammate.name as name')
-										->join('teammate', 'attendance.teammate_id = teammate.id and teammate.team_id = "' . $team_id . '"')
-										->where('attendance.type', '0')
-										->where('attendance.created_at >', $this->setTime()->toDateTimeString())
-										->countAllResults();
+		if(is_null($team_id) || is_null($TeamModel->where('id', $team_id)->first())) {
+			return $this->failValidationError();
+		}
+
+		$attendances = $TeamMateModel->select('tm.id as id, tm.name as name, tm.birthday as birthday, a.created_at as date, a.type as type')
+									->orderBy('tm.name', 'ASC')
+                            	  	->distinct()
+                          		  	->from('teammate as tm')
+                         	     	->join('attendance as a', '(a.teammate_id = tm.id and a.created_at >"'.$this->setTime()->toDateTimeString().'")', 'left outer')
+                          	    	->where('tm.team_id', $team_id)
+                              		->findAll();
 		
-		$result = $FacilityModel->select('facility.*, ' .$teammate. ' as teammate, ' .$attendance.' as attendance')
-								->where('facility.id', $facility_id)
-								->first();
-
-		return $this->respond($result);
+		/*
+		$sortArr = array();
+		foreach($attendances as $value) {
+			$sortArr[] = $value['name'];
+		}
+		array_multisort($attendances, SORT_ASC, $sortArr);
+		*/
+		return $this->respond($attendances);
 
 	}
 

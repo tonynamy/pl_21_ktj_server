@@ -5,6 +5,7 @@ use App\Models\PlaceModel;
 use App\Models\FacilityModel;
 use App\Models\TeamModel;
 use App\Models\TeamMateModel;
+use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 
 class FMWebService extends BaseController
@@ -32,13 +33,20 @@ class FMWebService extends BaseController
 
     public function index() {
 
-        $PlaceModel = new PlaceModel();
-        $places = $PlaceModel->findAll();
-        $data = [
-            'places' => $places,
-        ];
+        if($this->auth->is_logged_in()) {
 
-        return view('index.php', $data);
+			return redirect()->to('/fm/menu');
+
+        } else {
+
+            $PlaceModel = new PlaceModel();
+            $places = $PlaceModel->findAll();
+            $data = [
+                'places' => $places,
+            ];
+
+            return view('index.php', $data);
+        }
     }
 
     public function login() {
@@ -47,7 +55,7 @@ class FMWebService extends BaseController
 		$username = $_POST['name'] ?? null;
 		$birthday = $_POST['birthday'] ?? null;
 
-        if($place_id == -1) {
+        if($place_id == '') {
             return $this->alert('현장명을 선택해주세요.');
         }else if($username == '') {
             return $this->alert('아이디를 입력해주세요.');
@@ -57,15 +65,27 @@ class FMWebService extends BaseController
 
 		if($this->auth->login($place_id, $username, $birthday)) {
             
-            if($this->auth->user()['level'] == 1) {
-                return $this->alert('팀장님은 로그인하실수 없습니다.');
-            } else {
+            if($this->auth->user()['level'] != 1 && $this->auth->user()['level'] != 0) {
                 return redirect()->to('/fm/menu')->setcookie("jwt_token", $this->auth->createJWT(), 86500);
+            } else if($this->auth->user()['level'] == 1) {
+                return $this->alert('팀장님은 로그인하실 수 없습니다.');
+            } else {
+                return $this->alert('관리자의 승인을 기다리고 있습니다.');
             }
             
 		} else {
             return $this->alert('로그인에 실패했습니다.');
 		}
+    }
+
+    public function logout() {
+        
+        if($this->auth->is_logged_in()) {
+
+			return redirect()->to('/fm')->deleteCookie("jwt_token");
+
+        }
+
     }
 
     /*-------------------------------------------사용자생성-------------------------------------------*/
@@ -79,6 +99,51 @@ class FMWebService extends BaseController
         ];
 
         return view('create_user.php', $data);
+    }
+
+    public function generate_user() {
+
+        $place_id = $_POST['place'] ?? null;
+		$username = $_POST['name'] ?? null;
+		$birthday = $_POST['birthday_calender'] ?? null;
+
+        if(preg_match('/[0-9]{4}-[0-9]{2}-[0-9]{2}/', $birthday, $birthday_preg)) {
+            $birthday = $birthday_preg[0];
+        }
+
+        if($place_id == '') {
+            return redirect()->back()->withInput()->with('alert', '현장명을 선택해주세요.')->with('birthday', $birthday);
+        }else if($username == '') {
+            return redirect()->back()->withInput()->with('alert', '이름을 입력해주세요.')->with('birthday', $birthday);
+		} else if ($birthday == '') {
+            return $this->alert('생년월일을 선택해주세요.');
+        }
+
+
+        //생년월일 손질
+        $birthday_arr = explode("-", $birthday);
+        $year = substr($birthday_arr[0], -2);
+        $birthday_data = $year . $birthday_arr[1] . $birthday_arr[2];
+
+        $new_user_data = [
+            'place_id' => $place_id,
+            'username' => $username,
+            'birthday' => $birthday_data,
+        ];
+
+        $UserModel = new UserModel();
+
+        if(!is_null($UserModel->where('place_id', $place_id)->where('username', $username)->where('birthday', $birthday_data)->first())) {
+            return redirect()->back()->withInput()->with('alert', '같은 사용자가 이미 있습니다.')->with('birthday', $birthday);
+        }
+           
+        try {
+            $UserModel->insert($new_user_data);
+        } catch (\Exception $e) {
+            return $this->alert('데이터 삽입 과정 중 오류가 발생하였습니다.\n사유: 유저생성실패');
+        }
+
+        return redirect()->to('/fm')->withInput()->with('alert', "사용자가 생성되었습니다.");
     }
 
     /*--------------------------------------------메뉴--------------------------------------------*/
@@ -358,33 +423,21 @@ class FMWebService extends BaseController
                     $building = $row_data[4];
                     $floor = $row_data[5];
                     $spot = $row_data[6];
+                    $section = $row_data[7];
 
-                    $section = 0;
-                    switch($row_data[7]) {
-                        case "사내":
-                            $section = 1;
-                            break;
-                        case "사외":
-                            $section = 2;
-                            break;
-                        default:
-                            $section = 0;
-                            break;
-                    }
-
-                    $purpose = $row_data[8] ?? '';
-                    $cube_data = $row_data[9] ?? null;
-                    $cube_result = $row_data[10] ?? null;
-                    $area_data = $row_data[11] ?? null;
-                    $area_result = $row_data[12] ?? null;
-                    $created_at = $row_data[13] ?? null;
-                    $started_at = $row_data[14] ?? null;
-                    $finished_at = $row_data[15] ?? null;
-                    $edit_started_at = $row_data[16] ?? null;
-                    $edit_finished_at = $row_data[17] ?? null;
-                    $dis_started_at = $row_data[18] ?? null;
-                    $dis_finished_at = $row_data[19] ?? null;
-                    $memo = $row_data[20] ?? null;
+                    $purpose = $row_data[8] ?? "";
+                    $cube_data = $row_data[9] ?? "";
+                    $cube_result = $row_data[10] ?? "";
+                    $area_data = $row_data[11] ?? "";
+                    $area_result = $row_data[12] ?? "";
+                    $created_at = $row_data[13] ?? "";
+                    $started_at = $row_data[14] ?? "";
+                    $finished_at = $row_data[15] ?? "";
+                    $edit_started_at = $row_data[16] ?? "";
+                    $edit_finished_at = $row_data[17] ?? "";
+                    $dis_started_at = $row_data[18] ?? "";
+                    $dis_finished_at = $row_data[19] ?? "";
+                    $memo = $row_data[20] ?? "";
 
                     //TRIM
                     $serial = trim($serial);
@@ -393,6 +446,7 @@ class FMWebService extends BaseController
                     $building = trim($building);
                     $floor = trim($floor);
                     $spot = trim($spot);
+                    $section = trim($section);
                     $purpose = trim($purpose);
                     $cube_data = trim($cube_data);
                     $cube_result = trim($cube_result);
@@ -407,19 +461,19 @@ class FMWebService extends BaseController
                     $memo = trim($memo);
 
                     //null값허용항목 처리
-                    $cube_data = $cube_data == '' ? null : $cube_data;
-                    $cube_result = $cube_result == '' ? null : $cube_result;
-                    $area_data = $area_data == '' ? null : $area_data;
-                    $area_result = $area_result == '' ? null : $area_result;
-                    $area_result = $area_result == '' ? null : $area_result;
-                    $created_at = $created_at == '' ? null : $created_at;
-                    $started_at = $started_at == '' ? null : $started_at;
-                    $finished_at = $finished_at == '' ? null : $finished_at;
-                    $edit_started_at = $edit_started_at == '' ? null : $edit_started_at;
-                    $edit_finished_at = $edit_finished_at == '' ? null : $edit_finished_at;
-                    $dis_started_at = $dis_started_at == '' ? null : $dis_started_at;
-                    $dis_finished_at = $dis_finished_at == '' ? null : $dis_finished_at;
-                    $memo = $memo == '' ? null : $memo;
+                    $cube_data = $cube_data == "" ? null : $cube_data;
+                    $cube_result = $cube_result == "" ? null : $cube_result;
+                    $area_data = $area_data == "" ? null : $area_data;
+                    $area_result = $area_result == "" ? null : $area_result;
+                    $area_result = $area_result == "" ? null : $area_result;
+                    $created_at = $created_at == "" ? null : $created_at;
+                    $started_at = $started_at == "" ? null : $started_at;
+                    $finished_at = $finished_at == "" ? null : $finished_at;
+                    $edit_started_at = $edit_started_at == "" ? null : $edit_started_at;
+                    $edit_finished_at = $edit_finished_at == "" ? null : $edit_finished_at;
+                    $dis_started_at = $dis_started_at == "" ? null : $dis_started_at;
+                    $dis_finished_at = $dis_finished_at == "" ? null : $dis_finished_at;
+                    $memo = $memo == "" ? null : $memo;
 
                     //필수정보 없을시 통과
                     if($serial === "" || $type === 0 || $subcontractor === "" || $building === "" || $floor === "" || $spot === "") {
@@ -457,8 +511,10 @@ class FMWebService extends BaseController
                             'memo' => $memo,
                         ];
 
-                        if($created_at != null) {
+                        if(!is_null($created_at)) {
                             $data['created_at'] = $created_at;
+                        } else {
+                            $data['created_at'] = Time::now()->toDateString();
                         }
 
                         array_push($info, $data);
@@ -492,7 +548,7 @@ class FMWebService extends BaseController
 
     /*-------------------------------------------출퇴근조회-------------------------------------------*/
 
-    public function view_attendance($team_id=null, $_target_time=null) {
+    public function view_attendance($team_id = null, $_target_time=null) {
 
         if(!$this->auth->is_logged_in()) {
 
@@ -522,52 +578,47 @@ class FMWebService extends BaseController
 
                 $day_of_week = $target_time->getDayOfWeek();
 
-                $start_time = $target_time->subDays($day_of_week-1);
-                $end_time = $target_time->addDays(7-$day_of_week+1);
-
-                $start_time = $start_time->setHour(0)->setMinute(0)->setSecond(0);
-                $end_time = $end_time->setHour(23)->setMinute(59)->setSecond(59);
-
+                $start_time = $target_time->subDays($day_of_week-1)->setHour(5)->setMinute(0)->setSecond(0);
+                $end_time = $start_time->addDays(7);
+                
                 $AttendanceModel = new AttendanceModel();
 
                 $attendanceRecords = $AttendanceModel->select('attendance.*, tm.name as teammate_name, tm.birthday as teammate_birthday')
                                                     ->join('teammate as tm', 'attendance.teammate_id = tm.id')
                                                     ->join('team as t', 'tm.team_id = t.id')
                                                     ->where('t.id', $team_id)
-                                                    ->where('attendance.created_at >= ', $start_time)
-                                                    ->where('attendance.created_at <= ', $end_time)
-                                                    ->orderBy('tm.name', 'asc')
+                                                    ->where('attendance.created_at >=', $start_time)
+                                                    ->where('attendance.created_at <', $end_time)
                                                     ->findAll();
 
                 $TeamMateModel = new TeamMateModel();
-                $attendance_teammates = $TeamMateModel->where('team_id', $team_id)->findAll();
-                
-                for($i=0;$i<7;$i++) {
+                $attendance_teammates = $TeamMateModel->where('team_id', $team_id)->orderBy('name', 'ASC')->findAll();
+
+                for($i=0; $i<7; $i++) {
 
                     $index_date = $start_time->addDays($i);
 
                     array_push($attendance_dates, $index_date);
 
-                    $current_attnedance_records = array_values(array_filter($attendanceRecords, function($record) use ($index_date) {
+                    $current_attendance_records = array_values(array_filter($attendanceRecords, function($record) use ($index_date) {
 
                         $created_at = Time::createFromFormat('Y-m-d H:i:s', $record['created_at']);
-
-                        return $created_at->isAfter($index_date) && $created_at->isBefore($index_date->setHour(23)->setMinute(59)->setSecond(59));
+                        return $created_at >= $index_date && $created_at < $index_date->addDays(1);
 
                     }));
-                    
-                    array_push($attendance_data, $current_attnedance_records);
+
+                    array_push($attendance_data, $current_attendance_records);
 
                 }
-
 
             }
 
             $TeamModel = new TeamModel();
 
             $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+
             $data = [
-                'this_team' => $team_id, 
+                'this_team' => $team_id,
                 
                 'teams'=> $teams,
 
@@ -581,7 +632,16 @@ class FMWebService extends BaseController
         }
     }
 
-    public function selet_team() {
+    public function change_name() {
+
+        $teammate_id = $_POST['teammate_id'] ?? null;
+        $new_name = $_POST['new_name'] ?? null;
+
+        $TeamMateModel = new TeamMateModel();
+
+        $TeamMateModel->set('name', $new_name)->where('id', $teammate_id)->update();
+
+        return redirect()->back()->with('alert', $new_name.'으로 이름이 변경되었습니다.');
 
     }
 
@@ -600,9 +660,215 @@ class FMWebService extends BaseController
         }
     }
 
+    /*-------------------------------------------시설물조회-------------------------------------------*/
+
+    public function view_facility($state = null) {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+
+            $state_array = [];
+
+            if(!is_null($state)) {
+                $state_array = str_split($state); 
+                $state_num = implode(",", $state_array);
+            }
+
+            $FacilityModel = new FacilityModel();
+
+            $search_serial = $_POST['search_serial'] ?? null;
+
+            if(!is_null($search_serial)) {
+                $FacilityModel->like('serial', $search_serial);
+            }
+
+            $facilities_1 = [];
+            $facilities_2 = [];
+            $facilities_3 = [];
+            $facilities_4 = [];
+
+            $facilities_a = [];
+            $facilities_b = [];
+            $facilities_c = [];
+            $facilities_d = [];
+            $facilities_e = [];
+            $facilities_f = [];
+            $facilities_g = [];
+
+            $facilities_type = [];
+            $is_type = false;
+
+            $types = [1, 2, 3, 4];
+
+            foreach($types as $type) {
+
+                if(in_array(strval($type), $state_array)) {
+
+                    $facilities = $FacilityModel->where('place_id', $this->auth->login_place_id())->where('type', $type)->findAll();
+
+                    foreach($facilities as $facility) {
+
+                        array_push($facilities_type, $facility);
+
+                    }
+
+                    $is_type = true;
 
 
+                }
+            }
 
+            if(!$is_type) {
+                $facilities_type = $FacilityModel->where('place_id', $this->auth->login_place_id())->findAll();
+            }
+            
+            //진행상황별
+            if(in_array("a", $state_array) || in_array("b", $state_array) || in_array("c", $state_array) || in_array("d", $state_array) || in_array("e", $state_array) || in_array("f", $state_array) || in_array("g", $state_array)) {
 
+                if(in_array("a", $state_array)) {
+
+                    $facilities_a = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $started_at = $facility['started_at'];
+                        $finished_at = $facility['finished_at'];
+                        $edit_started_at = $facility['edit_started_at'];
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("b", $state_array)) {
+
+                    $facilities_b = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $started_at = $facility['started_at'];
+                        $finished_at = $facility['finished_at'];
+                        $edit_started_at = $facility['edit_started_at'];
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("c", $state_array)) {
+
+                    $facilities_c = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $finished_at = $facility['finished_at'];
+                        $edit_started_at = $facility['edit_started_at'];
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("d", $state_array)) {
+
+                    $facilities_d = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $edit_started_at = $facility['edit_started_at'];
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("e", $state_array)) {
+
+                    $facilities_e = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("f", $state_array)) {
+
+                    $facilities_f = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($dis_started_at) && is_null($dis_finished_at);
+    
+                    }));
+                }
+                if(in_array("g", $state_array)) {
+
+                    $facilities_g = array_values(array_filter($facilities_type, function($facility) {
+    
+                        $dis_finished_at = $facility['dis_finished_at'];
+    
+                        return !is_null($dis_finished_at);
+    
+                    }));
+                }
+
+                $facilities_data = array_merge($facilities_a, $facilities_b, $facilities_c, $facilities_d, $facilities_e, $facilities_f, $facilities_g);
+                $facilities = array_unique($facilities_data, SORT_REGULAR);
+
+            } else {
+
+                $facilities = array_unique($facilities_type, SORT_REGULAR);
+
+            }
+
+            //승인번호순으로 정렬
+            if(count($facilities) > 0) {
+
+                foreach((array)$facilities as $key => $value) {
+                    $sort[$key] = $value['serial'];
+                }
+                array_multisort($sort, SORT_ASC, $facilities);
+
+            }
+            
+            /*
+            array_sort_by_multiple_keys($facilities, [
+                'serial' => SORT_ASC,
+            ]);
+            */
+
+            $subcontractors = [];
+
+            foreach($facilities as $facility) {
+
+                array_push($subcontractors,  $facility['subcontractor']);
+            }
+
+            $subcontractors = array_unique($subcontractors);
+            asort($subcontractors);
+            
+            $data = [
+
+                'facilities' => $facilities,
+
+                'state' => $state_num ?? '',
+
+                'subcontractors' => $subcontractors,
+
+                'search_serial' => $search_serial,
+                
+            ];
+
+            return view('view_facility', $data);
+            
+        }
+    }
 
 }

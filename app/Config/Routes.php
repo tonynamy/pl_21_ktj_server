@@ -51,6 +51,11 @@ $routes->group('fm', function($routes)
    $routes->add('view_attendance/(:num)', 'FMWebService::view_attendance/$1', 				['as' => 'view_attendance_team']);
    $routes->add('view_attendance/(:num)/(:num)', 'FMWebService::view_attendance/$1/$2', 	['as' => 'view_attendance']);
 
+   $routes->add('change_name', 'FMWebService::change_name');
+
+   $routes->add('view_facility', 'FMWebService::view_facility');
+   $routes->add('view_facility/(:any)', 'FMWebService::view_facility/$1');
+
    $routes->add('selet_team', 'FMWebService::selet_team');
    $routes->add('save_attendance_button', 'FMWebService::save_attendance_button');
 });
@@ -59,7 +64,7 @@ $routes->group('fm', function($routes)
 // API
 $routes->group('api', function($routes)
 {
-    $routes->add('', 'Home::index');
+    $routes->add('login', 'Home::index');
 	$routes->add('auth_check', 'Home::auth_check');
 	$routes->add('place', 'Home::place');
 	$routes->add('place_add', 'Home::place_add');
