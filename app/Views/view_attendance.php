@@ -50,8 +50,8 @@
                                         <div class="ui left pointing dropdown" style="padding:0px">
                                             <?= $teammate['name'] ?> ( <?= $teammate['birthday'] ?> )
                                             <div class="menu">
-                                                <a class="item name_change" data-id="<?= $teammate['id'] ?>" href="#">이름변경</a>
-                                                <a class="item birthday_change" data-id="<?= $teammate['id'] ?>" href="#">생일변경</a>
+                                                <a class="item" id="name_change" data-id="<?= $teammate['id'] ?>" href="#">이름변경</a>
+                                                <a class="item" id="birthday_change" data-id="<?= $teammate['id'] ?>" href="#">생일변경</a>
                                                 <a class="item team_change" data-id="<?= $teammate['id'] ?>" href="#">팀변경</a>
                                                 <a class="item teammate_remove" data-id="<?= $teammate['id'] ?>" href="#">팀원삭제</a>
                                             </div>
@@ -179,7 +179,7 @@
 
         });
 
-        $('.item.name_change').click(function() {
+        $('#name_change').click(function() {
 
             var id = $(this).data('id');
 
@@ -187,20 +187,41 @@
 
             if(new_name) {
 
-                var newForm = $('<form></form>'); 
-                
-                newForm.attr("name","newForm"); 
-                newForm.attr("method","post"); 
-                newForm.attr("action","/fm/change_name");
+                var newForm = $('<form></form>');
 
+                newForm.attr("name", "newForm");
+                newForm.attr("method", "post");
+                newForm.attr("action", "/fm/change_name");
+                
                 newForm.append($('<input/>', {type: 'hidden', name: 'teammate_id', value: id }));
                 newForm.append($('<input/>', {type: 'hidden', name: 'new_name', value: new_name }));
 
                 newForm.appendTo('body');
                 newForm.submit();
             }
+        });
 
-        })
+        $('#birthday_change').click(function() {
+
+            var id = $(this).data('id');
+
+            var new_birthday = prompt('바꿀 생년월일을 입력하세요.');
+
+            if(new_birthday) {
+
+                var newForm = $('<form></form>');
+
+                newForm.attr("name", "newForm");
+                newForm.attr("method", "post");
+                newForm.attr("action", "/fm/change_birthday");
+                
+                newForm.append($('<input/>', {type: 'hidden', name: 'teammate_id', value: id }));
+                newForm.append($('<input/>', {type: 'hidden', name: 'new_birthday', value: new_birthday }));
+
+                newForm.appendTo('body');
+                newForm.submit();
+            }
+        });
 
     });
 

@@ -2,9 +2,9 @@
 
 use CodeIgniter\Model;
 
-class AttendanceModel extends Model
-{
-    protected $table      = 'attendance';
+class TaskModel extends Model {
+
+    protected $table      = 'task';
     protected $primaryKey = 'id';
 
     protected $useAutoIncrement = true;
@@ -12,7 +12,7 @@ class AttendanceModel extends Model
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['teammate_id', 'type', 'created_at'];
+    protected $allowedFields = ['place_id', 'team_id', 'facility_serial', 'manday', 'type'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';
@@ -22,6 +22,5 @@ class AttendanceModel extends Model
     protected $validationRules    = [];
     protected $validationMessages = [];
     protected $skipValidation     = false;
-
 
 }

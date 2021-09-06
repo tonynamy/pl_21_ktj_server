@@ -55,12 +55,14 @@ class Authentication
                             ->where('username', $username)->where('birthday', $birthday)
                             ->first();
         
+        $this->login_place_id = $place_id;    //추가
+
 		if(is_null($row)) {
             $this->onLoginFailed();
 			return false;
 		}
         
-        $this->onLoginSuccess($row['id'], $place_id);   //, $place_id추가
+        $this->onLoginSuccess($row['id']);
 
         $this->user = $row;
 
@@ -80,9 +82,8 @@ class Authentication
         $this->level = null;
     }
 
-    private function onLoginSuccess($user_id, $login_place_id) {    //, $login_place_id추가
+    private function onLoginSuccess($user_id) {
         $this->user_id = $user_id;
-        $this->login_place_id = $login_place_id;    //추가
         $this->is_logged_in = true;
     }
 
@@ -107,11 +108,10 @@ class Authentication
             return $jwt;
 
         } else if($guest) {
-            
             $token_info = [
                 'user_id' => -1,
-                'supermanager' => $supermanager,
                 'login_place_id' => $this->login_place_id,  //추가
+                'supermanager' => $supermanager,
             ];
 
             $jwt = JWT::encode($token_info, $this->JWT_KEY);

@@ -3,9 +3,11 @@
 use App\Models\AttendanceModel;
 use App\Models\PlaceModel;
 use App\Models\FacilityModel;
+use App\Models\TaskPlanModel;
 use App\Models\TeamModel;
 use App\Models\TeamMateModel;
 use App\Models\UserModel;
+use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
 
 class FMWebService extends BaseController
@@ -63,6 +65,9 @@ class FMWebService extends BaseController
             return $this->alert('비밀번호를 입력해주세요.');
         }
 
+        $FacilityModel = new FacilityModel();
+        $FacilityModel->where('place_id', $place_id);
+
 		if($this->auth->login($place_id, $username, $birthday)) {
             
             if($this->auth->user()['level'] != 1 && $this->auth->user()['level'] != 0) {
@@ -73,6 +78,9 @@ class FMWebService extends BaseController
                 return $this->alert('관리자의 승인을 기다리고 있습니다.');
             }
             
+		} else if(!is_null($FacilityModel->like('super_manager', $username)->first())) {
+            return redirect()->to('/fm/menu')->setcookie("jwt_token", $this->auth->createJWT(true, $username), 86500);
+
 		} else {
             return $this->alert('로그인에 실패했습니다.');
 		}
@@ -150,18 +158,25 @@ class FMWebService extends BaseController
 
     public function menu() {
 
-		if(!$this->auth->is_logged_in()) {
+		if(!$this->auth->is_logged_in(true) && !$this->auth->is_logged_in(false)) {
 
 			return $this->login_fail();
 
-        } else {
+        } else{
 
+            //var_dump($this->auth->login_place_id());
             $PlaceModel = new PlaceModel();
             $login_place = $PlaceModel->where('id', $this->auth->login_place_id())->first();
-            $username = $this->auth->user()['username'];
-            $role_name = $this->auth->level() == 2? '관리자' : '최고관리자';
+
+            if($this->auth->is_logged_in(true)){
+                $supermanager = $this->auth->supermanager();
+                $login_info = $login_place['name'] . ' ' . $supermanager . ' ' . "담당자";
+            } else {
+                $username = $this->auth->user()['username'];
+                $role_name = $this->auth->level() == 2? '관리자' : '최고관리자';
+                $login_info = $login_place['name'] . ' ' . $username . ' ' . $role_name;
+            }
             
-            $login_info = $login_place['name'] . ' ' . $username . ' ' . $role_name;
             $data = [
                 'login_info' =>  $login_info,
             ];
@@ -378,6 +393,7 @@ class FMWebService extends BaseController
         } else {
 
             $FacilityModel = new FacilityModel();
+            $TaskPlanModel = new TaskPlanModel();
 
             $excel_string = $_POST['excel_string'] ?? null;
 
@@ -402,6 +418,16 @@ class FMWebService extends BaseController
                     }
 
                     $serial = $row_data[0];
+
+                    $serial_arr = explode("-", $serial);
+
+                    if(count($serial_arr) > 1 && is_numeric(end($serial_arr)) && intval(substr(end($serial_arr), 0, 1)) != 0 && is_numeric($serial_arr[count($serial_arr)-2])) {
+                        $r_num = array_pop($serial_arr);
+                        $o_serial = implode("-", $serial_arr);
+                    } else {
+                        $r_num = 0;
+                        $o_serial = $serial;
+                    }
 
                     $type = 4;
                     switch($row_data[1]) {
@@ -430,14 +456,16 @@ class FMWebService extends BaseController
                     $cube_result = $row_data[10] ?? "";
                     $area_data = $row_data[11] ?? "";
                     $area_result = $row_data[12] ?? "";
-                    $created_at = $row_data[13] ?? "";
-                    $started_at = $row_data[14] ?? "";
-                    $finished_at = $row_data[15] ?? "";
-                    $edit_started_at = $row_data[16] ?? "";
-                    $edit_finished_at = $row_data[17] ?? "";
-                    $dis_started_at = $row_data[18] ?? "";
-                    $dis_finished_at = $row_data[19] ?? "";
-                    $memo = $row_data[20] ?? "";
+                    $danger_data = $row_data[13] ?? "";
+                    $danger_result = $row_data[14] ?? "";
+                    $created_at = $row_data[15] ?? "";
+                    $started_at = $row_data[16] ?? "";
+                    $finished_at = $row_data[17] ?? "";
+                    $edit_started_at = $row_data[18] ?? "";
+                    $edit_finished_at = $row_data[19] ?? "";
+                    $dis_started_at = $row_data[20] ?? "";
+                    $dis_finished_at = $row_data[21] ?? "";
+                    $memo = $row_data[22] ?? "";
 
                     //TRIM
                     $serial = trim($serial);
@@ -452,6 +480,8 @@ class FMWebService extends BaseController
                     $cube_result = trim($cube_result);
                     $area_data = trim($area_data);
                     $area_result = trim($area_result);
+                    $danger_data = trim($danger_data);
+                    $danger_result = trim($danger_result);
                     $created_at = trim($created_at);
                     $finished_at = trim($finished_at);
                     $edit_started_at = trim($edit_started_at);
@@ -461,11 +491,6 @@ class FMWebService extends BaseController
                     $memo = trim($memo);
 
                     //null값허용항목 처리
-                    $cube_data = $cube_data == "" ? null : $cube_data;
-                    $cube_result = $cube_result == "" ? null : $cube_result;
-                    $area_data = $area_data == "" ? null : $area_data;
-                    $area_result = $area_result == "" ? null : $area_result;
-                    $area_result = $area_result == "" ? null : $area_result;
                     $created_at = $created_at == "" ? null : $created_at;
                     $started_at = $started_at == "" ? null : $started_at;
                     $finished_at = $finished_at == "" ? null : $finished_at;
@@ -480,16 +505,117 @@ class FMWebService extends BaseController
                         continue;
                     }
                     
+                    $state_column = [
+
+                        'created_at',
+                        'started_at',
+                        'finished_at',
+                        'edit_started_at',
+                        'edit_finished_at',
+                        'dis_started_at',
+                        'dis_finished_at',
+            
+                    ];
+
                     //해당 현장에 동일 시리얼번호가 있는지 확인
                     $same_facility = $FacilityModel->where('place_id', $this->auth->login_place_id())
                                                     ->where('serial', $serial)
                                                     ->first();
 
+                    //원도면의 작업계획 모두 찾기
+                    $taskplans = $TaskPlanModel->where('place_id', $this->auth->login_place_id())->where('facility_serial', $o_serial)->findAll();
+
+                    //현도면의 설치단계
+                    //for문으로 하고싶은데 $created_at 같은 변수를 어떻게 배열에 넣는지 모르겠네요
+                    if(!is_null($dis_finished_at)) {
+                        $this_facility_state = 6;
+                    } else if(!is_null($dis_started_at)) {
+                        $this_facility_state = 5;
+                    } else if(!is_null($edit_finished_at)) {
+                        $this_facility_state = 4;
+                    } else if(!is_null($edit_started_at)) {
+                        $this_facility_state = 3;
+                    } else if(!is_null($finished_at)) {
+                        $this_facility_state = 2;
+                    } else if(!is_null($started_at)) {
+                        $this_facility_state = 1;
+                    } else {
+                        $this_facility_state = 0;
+                    }
+
+                    //신규도면의 진행단계가 더 높을때는 작업계획이 삭제된다
+                    foreach($taskplans as $taskplan) {
+                        if($taskplan['type'] == 1 && $this_facility_state >= 2) {
+                            $TaskPlanModel->where('place_id', $this->auth->login_place_id())->where('facility_serial', $o_serial)->where('type', 1)->delete(null, true);
+                        } else if($taskplan['type'] == 2 && $this_facility_state >= 4) {
+                            $TaskPlanModel->where('place_id', $this->auth->login_place_id())->where('facility_serial', $o_serial)->where('type', 2)->delete(null, true);
+                        } else if($this_facility_state == 6) {
+                            $TaskPlanModel->where('place_id', $this->auth->login_place_id())->where('facility_serial', $o_serial)->delete(null, true);
+                        }
+                    }
+
+
+                    //같은 원도면을 공유하는 도면 전부찾기
+                    $previous_facilities = $FacilityModel->where('place_id', $this->auth->login_place_id())->where('o_serial', $o_serial)->findAll();
+
+                    
+                    //원도면에 값이 있고 신규등록하는 도면에 값이 없으면 원도면의 값을 대입
+                    //for문으로 돌리고 싶은데 $started_at, $finished_at 같은 변수들은 어떻게 $i에 대입해야할지 모르겠네요
+                    foreach($previous_facilities as $previous_facility) {
+
+                        if(!is_null($previous_facility['started_at']) && is_null($started_at)) {
+                            $started_at = $previous_facility['started_at'];
+                        }
+                        if(!is_null($previous_facility['finished_at']) && is_null($finished_at)) {
+                            $finished_at = $previous_facility['finished_at'];
+                        }
+                        if(!is_null($previous_facility['edit_started_at']) && is_null($edit_started_at)) {
+                            $edit_started_at = $previous_facility['edit_started_at'];
+                        }
+                        if(!is_null($previous_facility['edit_finished_at']) && is_null($edit_finished_at)) {
+                            $edit_finished_at = $previous_facility['edit_finished_at'];
+                        }
+                        if(!is_null($previous_facility['dis_started_at']) && is_null($dis_started_at)) {
+                            $dis_started_at = $previous_facility['dis_started_at'];
+                        }
+                        if(!is_null($previous_facility['dis_finished_at']) && is_null($dis_finished_at)) {
+                            $dis_finished_at = $previous_facility['dis_finished_at'];
+                        }
+                    }
+                    
+                    //원도면에 값이 없고 신규등록하는 도면에 값이 있으면 신규도면의 값을 대입
+                    //IS NULL 이 아니라 예를들어 기존 $started_at이 새로 들어온 $started_at과 다를때 대입하게 바꾸기
+                    if(!is_null($started_at) || !is_null($finished_at) || !is_null($edit_started_at) || !is_null($edit_finished_at) || !is_null($dis_started_at) || !is_null($dis_finished_at)) {
+
+                        $FacilityModel->where('place_id', $this->auth->login_place_id())->where('o_serial', $o_serial);
+                        if(!is_null($started_at)) {
+                            $FacilityModel->set('started_at', "IF(started_at IS NULL, '" . $started_at . "', started_at)", false);
+                        }
+                        if(!is_null($finished_at)) {
+                            $FacilityModel->set('finished_at', "IF(finished_at IS NULL, '" . $finished_at . "', finished_at)", false);
+                        }
+                        if(!is_null($edit_started_at)) {
+                            $FacilityModel->set('edit_started_at', "IF(edit_started_at IS NULL, '" . $edit_started_at . "', edit_started_at)", false);
+                        }
+                        if(!is_null($edit_finished_at)) {
+                            $FacilityModel->set('edit_finished_at', "IF(edit_finished_at IS NULL, '" . $edit_finished_at . "', edit_finished_at)", false);
+                        }
+                        if(!is_null($dis_started_at)) {
+                            $FacilityModel->set('dis_started_at', "IF(dis_started_at IS NULL, '" . $dis_started_at . "', dis_started_at)", false);
+                        }
+                        if(!is_null($dis_finished_at)) {
+                            $FacilityModel->set('dis_finished_at', "IF(dis_finished_at IS NULL, '" . $dis_finished_at . "', dis_finished_at)", false);
+                        }
+                        $FacilityModel->update();
+                    }
+                    
                     if(is_null($same_facility)) {
 
                         $data = [
                             'place_id' => $this->auth->login_place_id(),
                             'serial' => $serial,
+                            'o_serial' => $o_serial,
+                            'r_num' => $r_num,
                             'type' => $type,
                             'super_manager' => $super_manager,
                             'subcontractor' => $subcontractor,
@@ -502,6 +628,8 @@ class FMWebService extends BaseController
                             'cube_result' => $cube_result,
                             'area_data' => $area_data,
                             'area_result' => $area_result,
+                            'danger_data' => $danger_data,
+                            'danger_result' => $danger_result,
                             'started_at' => $started_at,
                             'finished_at' => $finished_at,
                             'edit_started_at' => $edit_started_at,
@@ -514,7 +642,7 @@ class FMWebService extends BaseController
                         if(!is_null($created_at)) {
                             $data['created_at'] = $created_at;
                         } else {
-                            $data['created_at'] = Time::now()->toDateString();
+                            $data['created_at'] = Time::now();
                         }
 
                         array_push($info, $data);
@@ -641,7 +769,20 @@ class FMWebService extends BaseController
 
         $TeamMateModel->set('name', $new_name)->where('id', $teammate_id)->update();
 
-        return redirect()->back()->with('alert', $new_name.'으로 이름이 변경되었습니다.');
+        return redirect()->back()->with('alert', $new_name . '(으)로 이름이 변경되었습니다.');
+
+    }
+
+    public function change_birthday() {
+
+        $teammate_id = $_POST['teammate_id'] ?? null;
+        $new_birthday = $_POST['new_birthday'] ?? null;
+
+        $TeamMateModel = new TeamMateModel();
+
+        $TeamMateModel->set('birthday', $new_birthday)->where('id', $teammate_id)->update();
+
+        return redirect()->back()->with('alert', $new_birthday . '(으)로 생년월일이 변경되었습니다.');
 
     }
 
@@ -676,165 +817,131 @@ class FMWebService extends BaseController
                 $state_array = str_split($state); 
                 $state_num = implode(",", $state_array);
             }
-
-            $FacilityModel = new FacilityModel();
-
+            
             $search_serial = $_POST['search_serial'] ?? null;
 
+            $FacilityModel = new FacilityModel();
+            $FacilityModel2 = new FacilityModel();
+
+            $FacilityModel->select('facility.*')->where('facility.place_id', $this->auth->login_place_id());
+            $FacilityModel2->select('facility.*')->where('facility.place_id', $this->auth->login_place_id());
+
+            if(in_array("o", $state_array) || in_array("r", $state_array)) {
+                $FacilityModel->groupStart();
+            }
+
+            if(in_array("o", $state_array)) {
+                $FacilityModel->orWhere('r_num', 0);
+            }  if(in_array("r", $state_array)) {
+                $FacilityModel->orWhere('r_num !=', 0);
+            }  
+            
+            if(in_array("o", $state_array) || in_array("r", $state_array)) {
+                $FacilityModel->groupEnd();
+            }
+
             if(!is_null($search_serial)) {
+
                 $FacilityModel->like('serial', $search_serial);
             }
 
-            $facilities_1 = [];
-            $facilities_2 = [];
-            $facilities_3 = [];
-            $facilities_4 = [];
-
-            $facilities_a = [];
-            $facilities_b = [];
-            $facilities_c = [];
-            $facilities_d = [];
-            $facilities_e = [];
-            $facilities_f = [];
-            $facilities_g = [];
-
+            
+            //공종별
+            $types = [1, 2, 3, 4];
             $facilities_type = [];
             $is_type = false;
-
-            $types = [1, 2, 3, 4];
-
+            
             foreach($types as $type) {
 
                 if(in_array(strval($type), $state_array)) {
 
-                    $facilities = $FacilityModel->where('place_id', $this->auth->login_place_id())->where('type', $type)->findAll();
+                    if($is_type == false) {
+                        $FacilityModel->groupStart();
+                        $FacilityModel2->groupStart();
+                    }
 
+                    $FacilityModel->orWhere('type', $type);
+                    $FacilityModel2->orWhere('type', $type);
+
+                    $is_type = true;
+                }
+
+                
+            }
+
+            if($is_type==true) {
+                $FacilityModel->groupEnd();
+                $FacilityModel2->groupEnd();
+            }
+
+            if(in_array("v", $state_array)) {
+                $select2 = $FacilityModel2->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+                                    ->getCompiledSelect();
+
+                $select1 = $FacilityModel->getCompiledSelect();
+                $query = '('.$select1.') UNION ('.$select2.')';
+                //var_dump($query);exit;
+                $facilities_type = db_connect()->query($query)->getResult('array');
+            }
+            else $facilities_type = $FacilityModel->findAll();
+
+
+            //진행상황별
+            $states = ["a", "b", "c", "d", "e", "f", "g"];
+            $facilities_result = [];
+            $is_state = false;
+            
+            foreach($states as $state) {
+
+                if(in_array($state, $state_array)) {
+
+                    $facilities = array_values(array_filter($facilities_type, function($facility) use($state) {
+    
+                        $started_at = $facility['started_at'];
+                        $finished_at = $facility['finished_at'];
+                        $edit_started_at = $facility['edit_started_at'];
+                        $edit_finished_at = $facility['edit_finished_at'];
+                        $dis_started_at = $facility['dis_started_at'];
+                        $dis_finished_at = $facility['dis_finished_at'];
+                        
+                        if($state == "a") {
+                            return is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "b") {
+                            return !is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "c") {
+                            return !is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "d") {
+                            return !is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "e") {
+                            return !is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "f") {
+                            return !is_null($dis_started_at) && is_null($dis_finished_at);
+                        } else if($state == "g") {
+                            return !is_null($dis_finished_at);
+                        }
+                    
+                    }));
+                    
                     foreach($facilities as $facility) {
 
-                        array_push($facilities_type, $facility);
+                        array_push($facilities_result, $facility);
 
                     }
 
-                    $is_type = true;
-
-
+                    $is_state = true;
                 }
             }
-
-            if(!$is_type) {
-                $facilities_type = $FacilityModel->where('place_id', $this->auth->login_place_id())->findAll();
-            }
-            
-            //진행상황별
-            if(in_array("a", $state_array) || in_array("b", $state_array) || in_array("c", $state_array) || in_array("d", $state_array) || in_array("e", $state_array) || in_array("f", $state_array) || in_array("g", $state_array)) {
-
-                if(in_array("a", $state_array)) {
-
-                    $facilities_a = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $started_at = $facility['started_at'];
-                        $finished_at = $facility['finished_at'];
-                        $edit_started_at = $facility['edit_started_at'];
-                        $edit_finished_at = $facility['edit_finished_at'];
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("b", $state_array)) {
-
-                    $facilities_b = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $started_at = $facility['started_at'];
-                        $finished_at = $facility['finished_at'];
-                        $edit_started_at = $facility['edit_started_at'];
-                        $edit_finished_at = $facility['edit_finished_at'];
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("c", $state_array)) {
-
-                    $facilities_c = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $finished_at = $facility['finished_at'];
-                        $edit_started_at = $facility['edit_started_at'];
-                        $edit_finished_at = $facility['edit_finished_at'];
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("d", $state_array)) {
-
-                    $facilities_d = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $edit_started_at = $facility['edit_started_at'];
-                        $edit_finished_at = $facility['edit_finished_at'];
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("e", $state_array)) {
-
-                    $facilities_e = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $edit_finished_at = $facility['edit_finished_at'];
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("f", $state_array)) {
-
-                    $facilities_f = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $dis_started_at = $facility['dis_started_at'];
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($dis_started_at) && is_null($dis_finished_at);
-    
-                    }));
-                }
-                if(in_array("g", $state_array)) {
-
-                    $facilities_g = array_values(array_filter($facilities_type, function($facility) {
-    
-                        $dis_finished_at = $facility['dis_finished_at'];
-    
-                        return !is_null($dis_finished_at);
-    
-                    }));
-                }
-
-                $facilities_data = array_merge($facilities_a, $facilities_b, $facilities_c, $facilities_d, $facilities_e, $facilities_f, $facilities_g);
-                $facilities = array_unique($facilities_data, SORT_REGULAR);
-
-            } else {
-
-                $facilities = array_unique($facilities_type, SORT_REGULAR);
-
+            if(!$is_state) {
+                $facilities_result = $facilities_type;
             }
 
             //승인번호순으로 정렬
-            if(count($facilities) > 0) {
+            if(count($facilities_result) > 0) {
 
-                foreach((array)$facilities as $key => $value) {
+                foreach((array)$facilities_result as $key => $value) {
                     $sort[$key] = $value['serial'];
                 }
-                array_multisort($sort, SORT_ASC, $facilities);
+                array_multisort($sort, SORT_ASC, $facilities_result);
 
             }
             
@@ -843,12 +950,10 @@ class FMWebService extends BaseController
                 'serial' => SORT_ASC,
             ]);
             */
-
             $subcontractors = [];
+            foreach($facilities_result as $facility) {
 
-            foreach($facilities as $facility) {
-
-                array_push($subcontractors,  $facility['subcontractor']);
+                array_push($subcontractors, $facility['subcontractor']);
             }
 
             $subcontractors = array_unique($subcontractors);
@@ -856,7 +961,7 @@ class FMWebService extends BaseController
             
             $data = [
 
-                'facilities' => $facilities,
+                'facilities' => $facilities_result,
 
                 'state' => $state_num ?? '',
 
@@ -866,7 +971,7 @@ class FMWebService extends BaseController
                 
             ];
 
-            return view('view_facility', $data);
+            return view('view_facility.php', $data);
             
         }
     }

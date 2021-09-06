@@ -19,7 +19,7 @@ ini_set('display_errors', '1');
  | backtraces along with the other error information. If you would
  | prefer to not see this, set this value to false.
  */
-defined('SHOW_DEBUG_BACKTRACE') || define('SHOW_DEBUG_BACKTRACE', false);
+defined('SHOW_DEBUG_BACKTRACE') || define('SHOW_DEBUG_BACKTRACE', true);
 
 /*
  |--------------------------------------------------------------------------

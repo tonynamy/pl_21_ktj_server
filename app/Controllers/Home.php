@@ -2,15 +2,16 @@
 
 namespace App\Controllers;
 
-use App\Models\AttendanceModel;
-use App\Models\TaskPlanModel;
-use App\Models\FacilityModel;
-use App\Models\PlaceModel;
-use App\Models\TeamMateModel;
-use App\Models\TeamModel;
-use App\Models\UserModel;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\RESTful\ResourceController;
+use App\Models\PlaceModel;
+use App\Models\UserModel;
+use App\Models\TeamModel;
+use App\Models\TeamMateModel;
+use App\Models\AttendanceModel;
+use App\Models\FacilityModel;
+use App\Models\TaskModel;
+use App\Models\TaskPlanModel;
 
 class Home extends ResourceController
 {
@@ -553,7 +554,7 @@ class Home extends ResourceController
 	public function attendance_edit() {
 
 		if(!$this->auth->is_logged_in()) {
-			return $this->failForbidden();
+			return $this->failUnauthorized();
 		}
 
 		$AttendanceModel = new AttendanceModel();
@@ -562,14 +563,11 @@ class Home extends ResourceController
 		$type = $_POST['type'] ?? null;
 		$date = $_POST['date'] ?? null;
 
-		if(is_null($teammate_id) || is_null($type)) {
-			return $this->failValidationError();
-		}
-		if(is_null($type) || is_null($date)) {
+		if(is_null($teammate_id) || is_null($type) || is_null($date)) {
 			return $this->failValidationError();
 		}
 		if($type < 0 || $type > 1) {
-			return $this->failValidationError();
+			return $this->failForbidden();
 		}
 		
 		$AttendanceModel->where('created_at >', $this->setTime())
@@ -650,18 +648,23 @@ class Home extends ResourceController
 		}
 
 		$FacilityModel = new FacilityModel();
-		$TeamMateModel = new TeamMateModel();
+		//$TeamMateModel = new TeamMateModel();
 		$AttendanceModel = new AttendanceModel();
 		$TaskPlanModel = new TaskPlanModel();
+
+		$facility_o_serial = $FacilityModel->where('id', $facility_id)->first()['o_serial'] ?? null;
 
 		/*
 		if($this->auth->is_logged_in(true)) {
 			$FacilityModel->like('super_manager', $this->auth->supermanager());
 		}
 		*/
+		if($facility_o_serial == null) {
+			return $this->failForbidden();
+		}
 
+		//팀장님
 		if($team_id != null) {
-
 			//$teammate = $TeamMateModel->where('team_id', $team_id)->countAllResults();
 
 			$attendance = $AttendanceModel->select('teammate.name as name')
@@ -670,14 +673,18 @@ class Home extends ResourceController
 											->where('attendance.created_at >', $this->setTime()->toDateTimeString())
 											->countAllResults();
 		
-			$facility = $FacilityModel->where('facility.id', $facility_id)->first();
+			$facility = $FacilityModel->select('facility.*, taskplan.type as taskplan_type, taskplan.team_id as taskplan_team_id')
+									->join('taskplan', 'facility.o_serial = taskplan.facility_serial', 'left outer')
+									->where('facility.id', $facility_id)
+									->first();
 
 			$facility['attendance'] = $attendance;
 
-		} else if(!is_null($TaskPlanModel->where('facility_id', $facility_id)->first())) {
+		//관리자
+		} else if(!is_null($TaskPlanModel->where('facility_serial', $facility_o_serial)->first())) {
 
 			$facility = $FacilityModel->select('facility.*, taskplan.type as taskplan_type, taskplan.team_id as taskplan_team_id')
-									->join('taskplan', 'facility.id = taskplan.facility_id', 'left outer')
+									->join('taskplan', 'facility.o_serial = taskplan.facility_serial', 'left outer')
 									->where('facility.id', $facility_id)
 									->first();
 
@@ -723,7 +730,7 @@ class Home extends ResourceController
 
 		return $array;
 	}
-
+	
 	public function facility_search_info() {
 
 		if(!$this->auth->is_logged_in(true) && !$this->auth->is_logged_in(false)) {
@@ -737,7 +744,7 @@ class Home extends ResourceController
 		$subcontractor = $_POST['subcontractor'] ?? null;
 		$building = $_POST['building'] ?? null;
 		$floor = $_POST['floor'] ?? null;
-		$spot = $_POST['spot'] ?? null;
+		$sopt = $_POST['sopt'] ?? null;
 
 		$FacilityModel = new FacilityModel();
 		
@@ -765,11 +772,9 @@ class Home extends ResourceController
 			$FacilityModel->where('floor', $floor);
 		}
 
-		if($spot != null) {
-			$FacilityModel->where('spot', $spot);
+		if($sopt != null) {
+			$FacilityModel->where('sopt', $sopt);
 		}
-
-
 
 		$FacilityModel->select('GROUP_CONCAT(DISTINCT type) as type, GROUP_CONCAT(DISTINCT subcontractor) as subcontractor, GROUP_CONCAT(DISTINCT building) as building, GROUP_CONCAT(DISTINCT floor) as floor, GROUP_CONCAT(DISTINCT spot) as spot')
 						->where('place_id', $place_id);
@@ -806,55 +811,128 @@ class Home extends ResourceController
 		$place_id = $_POST['place_id'] ?? null;
 		$serial = $_POST['serial'] ?? null;
 		$type = $_POST['type'] ?? null;
+		$super_manager = $_POST['super_manager'] ?? null;
 		$subcontractor = $_POST['subcontractor'] ?? null;
 		$building = $_POST['building'] ?? null;
 		$floor = $_POST['floor'] ?? null;
 		$spot = $_POST['spot'] ?? null;
-		$super_manager = $_POST['super_manager'] ?? null;
+		$button_right = $_POST['button_right'] ?? null;
+		$filter = $_POST['filter'] ?? null;
+
+		$state_array = [];
 		
 		$FacilityModel = new FacilityModel();
+
+		//관리자
+		if(intval($button_right) == 2) {
+			$FacilityModel->select('facility.*, taskplan.type as taskplan_type')->join('taskplan', 'facility.o_serial = taskplan.facility_serial', 'left outer');
+		}
 		
 		if($place_id != null) {
-			$FacilityModel->where('place_id', $place_id);
+			$FacilityModel->where('facility.place_id', $place_id);
 		} else {
 			return $this->failValidationError();
 		}
 
 		if($serial != null) {
-			$FacilityModel->like('serial', $serial);
+			$FacilityModel->like('facility.serial', $serial);
 		}
 
 		if($type != null) {
-			$FacilityModel->where('type', $type);
-		}
-
-		if($subcontractor != null) {
-			$FacilityModel->like('subcontractor', $subcontractor);
-		}
-
-		if($building != null) {
-			$FacilityModel->where('building', $building);
-		}
-		
-		if($floor != null) {
-			$FacilityModel->where('floor', $floor);
-		}
-
-		if($spot != null) {
-			$FacilityModel->where('spot', $spot);
+			$FacilityModel->where('facility.type', $type);
 		}
 
 		if($super_manager != null) {
-			$FacilityModel->like('super_manager', $super_manager);
+			$FacilityModel->like('facility.super_manager', $super_manager);
+		}
+
+		if($subcontractor != null) {
+			$FacilityModel->like('facility.subcontractor', $subcontractor);
+		}
+
+		if($building != null) {
+			$FacilityModel->where('facility.building', $building);
 		}
 		
+		if($floor != null) {
+			$FacilityModel->where('facility.floor', $floor);
+		}
+
+		if($spot != null) {
+			$FacilityModel->where('facility.spot', $spot);
+		}
+
+		if($filter != null) {
+			$state_array = str_split($filter); 
+		}
+
 		if($this->auth->is_logged_in(true)) {
-			$FacilityModel->like('super_manager', $this->auth->supermanager());
+			$FacilityModel->like('facility.super_manager', $this->auth->supermanager());
 		}
-		
-		$facility_result = $FacilityModel->orderBy('serial', 'ASC')->findAll();
-		
-		return $this->respond($facility_result);
+
+		$searched_facilities = $FacilityModel->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+											->findAll();
+
+		//필터적용
+		$states = ["a", "b", "c", "d", "e", "f", "g"];
+        $facilities_result = [];
+        $is_state = false;
+        
+        foreach($states as $state) {
+
+            if(in_array($state, $state_array)) {
+
+                $facilities = array_values(array_filter($searched_facilities, function($facility) use($state) {
+    
+                    $started_at = $facility['started_at'];
+                    $finished_at = $facility['finished_at'];
+                    $edit_started_at = $facility['edit_started_at'];
+                    $edit_finished_at = $facility['edit_finished_at'];
+                    $dis_started_at = $facility['dis_started_at'];
+                    $dis_finished_at = $facility['dis_finished_at'];
+                    
+                    if($state == "a") {
+                        return is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "b") {
+                        return !is_null($started_at) && is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "c") {
+                        return !is_null($finished_at) && is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "d") {
+                        return !is_null($edit_started_at) && is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "e") {
+                        return !is_null($edit_finished_at) && is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "f") {
+                        return !is_null($dis_started_at) && is_null($dis_finished_at);
+                    } else if($state == "g") {
+                        return !is_null($dis_finished_at);
+                    }
+                
+                }));
+                
+                foreach($facilities as $facility) {
+
+                    array_push($facilities_result, $facility);
+
+                }
+
+                $is_state = true;
+            }
+        }
+        if(!$is_state) {
+            $facilities_result = $searched_facilities;
+        }
+
+        //승인번호순으로 정렬
+        if(count($facilities_result) > 0) {
+
+            foreach((array)$facilities_result as $key => $value) {
+                $sort[$key] = $value['serial'];
+            }
+            array_multisort($sort, SORT_ASC, $facilities_result);
+
+        }
+
+		return $this->respond($facilities_result);
 
 	}
 
@@ -866,10 +944,6 @@ class Home extends ResourceController
 
 		$id = $_POST['id'] ?? null;
 		$state_type = $_POST['state_type'] ?? null;
-
-		if($state_type == null) {
-			return $this->failValidationError();
-		}
 
 		$state_column = [
 
@@ -888,21 +962,75 @@ class Home extends ResourceController
 		}
 
 		$FacilityModel = new FacilityModel();
+		$TaskPlanModel = new TaskPlanModel();
+		$this_facility = $FacilityModel->where('id', $id)->first();
 
-		if($this->auth->user()['place_id'] != null) {
-			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
+		if($this_facility == null) {
+			return $this->failForbidden();
 		}
 
-		$FacilityModel->where('id', $id);
+		$this_facility_state = 0;
+		for($i = count($state_column)-1; $i >= 0; $i--) {
+			if(!is_null($this_facility[$state_column[$i]])) {
+				$this_facility_state = $i;
+				break;
+			}
+		}
 
-		$FacilityModel->set($state_column[$state_type], "IF(".$state_column[$state_type]." IS NULL, '".Time::now()->toDateString()."', ".$state_column[$state_type].")", false);
+		//선택한 것이 지금 진행상황과 같으면 아무 작업도 하지 않는다.
+		if($state_type == $this_facility_state) {
+			return $this->respond();
+		}
 
-		for($i = $state_type+1; $i<count($state_column); $i++) {
+		$place_id = $this_facility['place_id'];
+		$o_serial = $this_facility['o_serial'];
+
+		if($place_id == 0 || $o_serial == "") {
+			return $this->failForbidden();
+		}
+
+		$FacilityModel->where('place_id', $place_id)->where('o_serial', $o_serial);
+
+		//선택된 진행상황 이전 진행상황중 null이 있으면 채워넣기
+		for($i = $state_type; $i > 0; $i--) {
+			$FacilityModel->set($state_column[$i], "IF(".$state_column[$i]." IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
+		}
+		//선택된 진행상황 이후 진행상황은 모두 삭제
+		for($i = $state_type+1; $i < count($state_column); $i++) {
 			$FacilityModel->set($state_column[$i], null);
 		}
-
+		//설치전, 설치중 상황이면 만료일 삭제
 		if($state_type < 2) {
 			$FacilityModel->set('expired_at', null);
+		}
+		//이전 진행상황으로 되돌리는 상황이면 설치계획 삭제
+		$TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $o_serial);
+		if($state_type < $this_facility_state) {
+			/*
+			if($state_type == 0) {
+				$TaskPlanModel->delete(null, true);
+			} else */ if($state_type < 2) {
+				$TaskPlanModel->where('type', 2)->orwhere('type', 3)->delete(null, true);
+			}
+
+		//순차적으로 진행되었을 떄
+		} else {
+			//승인완료되면 설치예정 작업계획 삭제
+			if($state_type == 2) {
+				$TaskPlanModel->where('type', 1)->delete(null, true);
+			//수정중이되면 해체예정 작업계획 삭제
+			} else if($state_type == 3) {
+				$TaskPlanModel->where('type', 3)->delete(null, true);
+			//수정완료되면 설치예정, 수정예정 작업계획 삭제
+			} else if($state_type == 4) {
+				$TaskPlanModel->where('type', 1)->orwhere('type', 2)->delete(null, true);
+			//해체중이되면 수정예정 작업계획 삭제
+			} else if($state_type == 5) {
+				$TaskPlanModel->where('type', 2)->delete(null, true);
+			//해체완료되면 모든 작업계획 삭제
+			} else if($state_type == 6) {
+				$TaskPlanModel->delete(null, true);
+			}
 		}
 
 		$success = true;
@@ -919,7 +1047,6 @@ class Home extends ResourceController
 
 		if($success) return $this->respondUpdated();
 		else return $this->failServerError();
-
 	}
 
 	public function facility_edit_expired_at() {
@@ -1050,6 +1177,111 @@ class Home extends ResourceController
 		else return $this->failServerError();
 	}
 
+	/*-------------------------------------------작업관련-------------------------------------------*/
+
+	public function task_add() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+
+		$team_id = $_POST['team_id'] ?? null;
+		$facility_id = $_POST['facility_id'] ?? null;
+		$manday = $_POST['manday'] ?? null;
+		$type = $_POST['type'] ?? null;
+
+		$state_column = [
+
+			'created_at',			//0
+			'started_at',			//1
+			'finished_at',			//2
+			'edit_started_at',		//3
+			'edit_finished_at',		//4
+			'dis_started_at',		//5
+			'dis_finished_at',		//6
+
+		];
+
+		if($team_id == null || $facility_id == null || $manday == null || $type == null) {
+			return $this->failValidationError();
+		}
+
+		$TeamModel = new TeamModel();
+		$FacilityModel = new FacilityModel();
+		$TaskModel = new TaskModel();
+		$TaskPlanModel = new TaskPlanModel();
+
+		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? null;
+		$this_facility = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first();
+		
+		if($place_id == 0 || $this_facility == null) {
+			return $this->failForbidden();
+		}
+		
+		$facility_serial = $this_facility['o_serial'];
+		
+		if($facility_serial == "") {
+			return $this->failForbidden();
+		}
+		
+		$taskplan_type = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->first()['type'] ?? null;
+		
+		$this_facility_state = 0;
+		for($i = count($state_column)-1; $i >= 0; $i--) {
+			if(!is_null($this_facility[$state_column[$i]])) {
+				$this_facility_state = $i;
+				break;
+			}
+		}
+		
+		$state_num = 0;
+		if($type == 1) {
+			$state_num = 1;
+		} else if($type == 2) {
+			$state_num = 3;
+		} else if($type == 3) {
+			$state_num = 5;
+		}
+
+		//진행중인 작업인지 확인
+		$same_facility = $FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial)->where($state_column[$state_num] . ' !=', null)->first();
+
+		$FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial);
+		//처음 진행하는 작업이라면
+		if(is_null($same_facility)) {
+			//이전작업의 빈날짜를 모두 오늘로 채워넣기
+			for($i = $state_num; $i > 0; $i--) {
+				$FacilityModel->set($state_column[$i], "IF(" . $state_column[$i] . " IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
+			}
+		}
+		//수정작업계획($type == 2)이 있고 현재진행상태는 수정완료($this_facility_state == 4)일때에 한해 수정버튼($type == 2)을 눌렸을시 수정완료일이 삭제된다
+		if($taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
+			$FacilityModel->set('edit_finished_at', null);
+		}
+		$FacilityModel->update();
+
+		$success = true;
+
+		try {
+			
+			$success = $TaskModel->insert([
+				'place_id' => $place_id,
+				'team_id' => $team_id,
+				'facility_serial' => $facility_serial,
+				'manday' => $manday,
+				'type' => $type,
+			]);
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+	}
+
 	/*-----------------------------------------작업계획관련-----------------------------------------*/
 
 	public function taskplan() {
@@ -1060,8 +1292,8 @@ class Home extends ResourceController
 		
 		$place_id = $_POST['place_id'] ?? null;
 
-		if($this->auth->user()['place_id'] != null && $this->auth->user()['place_id'] != $place_id) {
-			return $this->failForbidden();
+		if($place_id == null) {
+			return $this->failValidationError();
 		}
 		
 		$FacilityModel = new FacilityModel();
@@ -1074,18 +1306,15 @@ class Home extends ResourceController
 
 		$target_time = Time::now()->addDays(14);
 
-		$expire_facilities = $FacilityModel->where('expired_at < ', $target_time)->findAll();
-
-		if($this->auth->user()['place_id'] == null) {
-			$FacilityModel->where('facility.place_id', $place_id);
-		} else {
-			$FacilityModel->where('facility.place_id', $this->auth->user()['place_id']);
-		}
+		$expire_facilities = $FacilityModel->where('place_id', $place_id)->where('expired_at < ', $target_time)->findAll();
 
 		$facility_with_taskplan = $FacilityModel->select('facility.*, taskplan.type as taskplan, team.name as team_name')
-												->join('taskplan', 'facility.id = taskplan.facility_id')
-												->join('team', 'team.id = taskplan.team_id')
-												->findAll();
+								->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+								->join('taskplan', 'facility.place_id = taskplan.place_id and facility.o_serial = taskplan.facility_serial')
+								->join('team', 'team.id = taskplan.team_id')
+								->where('facility.place_id', $place_id)
+								->findAll();
+
 
 		$construct_planned_facilities = array_values(array_filter($facility_with_taskplan, function($facility) {
 			return $facility['taskplan'] == 1;
@@ -1119,14 +1348,23 @@ class Home extends ResourceController
 
 		$team_id = $_POST['team_id'] ?? null;
 
+		if($team_id == null) {
+			return $this->failValidationError();
+		}
+
+		$TeamModel = new TeamModel();
 		$TaskPlanModel = new TaskPlanModel();
 		$TaskPlanModel->where('team_id', $team_id);
-
-		$taskplan = $TaskPlanModel->select('facility.*, taskplan.type as taskplan')
-									->join('facility', 'facility.id = taskplan.facility_id')
-									->findAll();
 		
-		return $this->respond($taskplan);
+		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'];
+
+		$taskplan_list = $TaskPlanModel->select('facility.*, taskplan.type as taskplan')
+						->join('facility', 'facility.place_id = taskplan.place_id and facility.o_serial = taskplan.facility_serial')
+						->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+						->where('facility.place_id', $place_id)
+						->findAll();
+		
+		return $this->respond($taskplan_list);
 	}
 	
 	public function taskplan_edit() {
@@ -1144,13 +1382,17 @@ class Home extends ResourceController
 		}
 
 		$TeamModel = new TeamModel();
+		$FacilityModel = new FacilityModel();
 		$TaskPlanModel = new TaskPlanModel();
 
-		if($this->auth->user()['place_id'] != null && is_null($TeamModel->where('place_id', $this->auth->user()['place_id'])->where('id', $team_id)->first()) ) {
+		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? null;
+		$facility_serial = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first()['o_serial'] ?? null;
+
+		if($place_id == 0 || $facility_serial == "") {
 			return $this->failForbidden();
 		}
 		
-		$taskplan = $TaskPlanModel->where('facility_id', $facility_id)->first();
+		$taskplan = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->first();
 
 		$success = true;
 
@@ -1158,13 +1400,14 @@ class Home extends ResourceController
 			if($taskplan == null) {
 
 				$success = $TaskPlanModel->insert([
-					'facility_id' => $facility_id,
+					'place_id' => $place_id,
+					'facility_serial' => $facility_serial,
 					'team_id' => $team_id,
 					'type' => $type,
 				]);
 
 			} else {
-				$success = $TaskPlanModel->where('facility_id', $facility_id)->set('team_id', $team_id)->set('type', $type)->update();
+				$success = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->set('team_id', $team_id)->set('type', $type)->update();
 			}
 
 		} catch(\Exception $e) {
@@ -1184,20 +1427,27 @@ class Home extends ResourceController
 		}
 		
 		$facility_id = $_POST['facility_id'] ?? null;
+
+		if(is_null($facility_id)) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
 		$TaskPlanModel = new TaskPlanModel();
 
-		if(!is_null($facility_id)) {
-			$taskplan = $TaskPlanModel->where('facility_id', $facility_id)->first();
-		} else {
-			return $this->failValidationError();
+		$this_facility = $FacilityModel->where('id', $facility_id)->first();
+		$place_id = $this_facility['place_id'];
+		$facility_serial = $this_facility['o_serial'];
+
+		if($place_id == 0 || $facility_serial == "") {
+			return $this->failForbidden();
 		}
 
 		$success = true;
 
-
 		try {
 
-			$success = $TaskPlanModel->delete($taskplan['id'], true);
+			$success = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->delete(null, true);
 
 		} catch(\Exception $e) {
 
@@ -1221,18 +1471,18 @@ class Home extends ResourceController
 
 		$FacilityModel = new FacilityModel();
 
-		if($place_id != null) {
-			$FacilityModel->where('place_id', $place_id);
-		} else {
+		if($place_id == null) {
 			return $this->failValidationError();
 		}
-		
-		if(is_null($FacilityModel->where('super_manager !=', '')->first())) {
+
+		if(is_null($FacilityModel->where('place_id', $place_id)->where('super_manager !=', '')->first())) {
 			return $this->failNotFound();
 		}
 		
-		$info = $FacilityModel->where('super_manager !=', '')
-								->select('GROUP_CONCAT(DISTINCT super_manager) as super_manager')
+		$FacilityModel->where('place_id', $place_id);
+
+		$info = $FacilityModel->select('GROUP_CONCAT(DISTINCT super_manager) as super_manager')
+								->where('super_manager !=', '')
 								->first();
 				
 		return $this->respond($info);

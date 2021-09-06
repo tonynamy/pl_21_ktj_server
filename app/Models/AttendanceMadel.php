@@ -1,4 +1,6 @@
-<?php namespace App\Models;
+<?php
+
+namespace App\Models;
 
 use CodeIgniter\Model;
 
@@ -12,7 +14,7 @@ class AttendanceModel extends Model
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['teammate_id', 'type', 'created_at'];
+    protected $allowedFields = ['user_id', 'type'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';

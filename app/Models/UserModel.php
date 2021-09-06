@@ -12,7 +12,7 @@ class UserModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['place_id', 'username', 'password', 'birthday'];
+    protected $allowedFields = ['place_id', 'level', 'username', 'birthday'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';
@@ -23,23 +23,21 @@ class UserModel extends Model {
     protected $validationMessages = [];
     protected $skipValidation     = false;
 
+    /*
     protected $beforeInsert = ['hashPasswordEvent'];
     protected $beforeUpdate = ['hashPasswordEvent'];
 
     function hashPassword($password) {
-
+        
         return password_hash($password, PASSWORD_DEFAULT);
-
     }
 
     protected function hashPasswordEvent(array $data) {
-
         if(!isset($data["data"]["password"])) return $data;
 
         $data["data"]["password"] = $this->hashPassword($data["data"]["password"]);
-
         return $data;
-
     }
+    */
 
 }
