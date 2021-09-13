@@ -1049,56 +1049,6 @@ class Home extends ResourceController
 		else return $this->failServerError();
 	}
 
-	public function facility_edit_expired_at() {
-
-		if(!$this->auth->is_logged_in()) {
-			return $this->failUnauthorized();
-		}
-
-		$id = $_POST['id'] ?? null;
-		$_expired_at = $_POST['expired_at'] ?? null;
-
-		$expired_at = null;
-
-		try {
-
-			$expired_at = Time::parse($_expired_at);
-
-		} catch(\Exception $e) {
-			return $this->failValidationError();
-		}
-
-		if($id == null || $expired_at == null) {
-			return $this->failValidationError();
-		}
-
-		$FacilityModel = new FacilityModel();
-
-		if($this->auth->user()['place_id'] != null) {
-			$FacilityModel->where('place_id', $this->auth->user()['place_id']);
-		}
-
-		$FacilityModel->where('id', $id);
-
-		$FacilityModel->set('expired_at', $expired_at);
-
-		$success = true;
-
-		try {
-
-			$success = $FacilityModel->update();
-
-		} catch(\Exception $e) {
-
-			$success = false;
-
-		}
-
-		if($success) return $this->respondUpdated();
-		else return $this->failServerError();
-
-	}
-
 	public function facility_edit_super_manager() {
 
 		if(!$this->auth->is_logged_in()) {
@@ -1177,6 +1127,103 @@ class Home extends ResourceController
 		else return $this->failServerError();
 	}
 
+	public function facility_edit_size() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$size = $_POST['size'] ?? null;
+		$is_danger = $_POST['is_danger'] ?? 'false';
+		$is_danger = $is_danger == 'true'? true: false;
+
+		if($id == null || $size == null) {
+			return $this->failValidationError();
+		}
+		if($this->auth->user()['place_id'] == null) {
+			return $this->failForbidden();
+		}
+
+		$FacilityModel = new FacilityModel();
+		
+		$FacilityModel->where('place_id', $this->auth->user()['place_id'])->where('id', $id);
+
+		if($is_danger) {
+			$FacilityModel->set('danger_result', $size);
+		} else {
+			$FacilityModel->set('cube_result', $size);
+		}
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+	}
+	
+	public function facility_edit_expired_at() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+
+		$id = $_POST['id'] ?? null;
+		$_expired_at = $_POST['expired_at'] ?? null;
+
+		if($id == null || $_expired_at == null) {
+			return $this->failValidationError();
+		}
+
+
+		$expired_at = null;
+
+		try {
+
+			$expired_at = Time::parse($_expired_at);
+
+		} catch(\Exception $e) {
+			return $this->failValidationError();
+		}
+
+		if($id == null || $expired_at == null) {
+			return $this->failValidationError();
+		}
+
+		$FacilityModel = new FacilityModel();
+
+		$this_facility = $FacilityModel->where('place_id', $this->auth->user()['place_id'])->where('id', $id)->first();
+
+		$FacilityModel->where('place_id', $this_facility['place_id'])->where('o_serial', $this_facility['o_serial']);
+
+		$FacilityModel->set('expired_at', "IF(expired_at IS NULL, '" . $expired_at . "', IF(id = '" . $id . "', '" . $expired_at . "', expired_at))", false);
+
+		$success = true;
+
+		try {
+
+			$success = $FacilityModel->update();
+
+		} catch(\Exception $e) {
+
+			$success = false;
+
+		}
+
+		if($success) return $this->respondUpdated();
+		else return $this->failServerError();
+
+	}
+
 	/*-------------------------------------------작업관련-------------------------------------------*/
 
 	public function task_add() {
@@ -1246,19 +1293,23 @@ class Home extends ResourceController
 		//진행중인 작업인지 확인
 		$same_facility = $FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial)->where($state_column[$state_num] . ' !=', null)->first();
 
-		$FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial);
-		//처음 진행하는 작업이라면
-		if(is_null($same_facility)) {
-			//이전작업의 빈날짜를 모두 오늘로 채워넣기
-			for($i = $state_num; $i > 0; $i--) {
-				$FacilityModel->set($state_column[$i], "IF(" . $state_column[$i] . " IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
+		if(is_null($same_facility) || $taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
+
+			$FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial);
+			//처음 진행하는 작업이라면
+			if(is_null($same_facility)) {
+				//이전작업의 빈날짜를 모두 오늘로 채워넣기
+				for($i = $state_num; $i > 0; $i--) {
+					$FacilityModel->set($state_column[$i], "IF(" . $state_column[$i] . " IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
+				}
 			}
+
+			//수정작업계획($type == 2)이 있고 현재진행상태는 수정완료($this_facility_state == 4)일때에 한해 수정버튼($type == 2)을 눌렸을시 수정완료일이 삭제된다
+			if($taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
+				$FacilityModel->set('edit_finished_at', null);
+			}
+			$FacilityModel->update();
 		}
-		//수정작업계획($type == 2)이 있고 현재진행상태는 수정완료($this_facility_state == 4)일때에 한해 수정버튼($type == 2)을 눌렸을시 수정완료일이 삭제된다
-		if($taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
-			$FacilityModel->set('edit_finished_at', null);
-		}
-		$FacilityModel->update();
 
 		$success = true;
 
@@ -1306,7 +1357,10 @@ class Home extends ResourceController
 
 		$target_time = Time::now()->addDays(14);
 
-		$expire_facilities = $FacilityModel->where('place_id', $place_id)->where('expired_at < ', $target_time)->findAll();
+		//이부분도 수정!!!!!
+		$expire_facilities = $FacilityModel->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+											->where('place_id', $place_id)->where('expired_at < ', $target_time)
+											->findAll();
 
 		$facility_with_taskplan = $FacilityModel->select('facility.*, taskplan.type as taskplan, team.name as team_name')
 								->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
@@ -1352,19 +1406,38 @@ class Home extends ResourceController
 			return $this->failValidationError();
 		}
 
+		$FacilityModel = new FacilityModel();
 		$TeamModel = new TeamModel();
-		$TaskPlanModel = new TaskPlanModel();
-		$TaskPlanModel->where('team_id', $team_id);
 		
 		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'];
 
-		$taskplan_list = $TaskPlanModel->select('facility.*, taskplan.type as taskplan')
-						->join('facility', 'facility.place_id = taskplan.place_id and facility.o_serial = taskplan.facility_serial')
-						->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
-						->where('facility.place_id', $place_id)
-						->findAll();
+		$plan_task = $FacilityModel->select('facility.*, taskplan.type as taskplan')
+									->orderBy('facility.serial', 'ASC')
+									->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+									->join('taskplan', 'taskplan.team_id = ' . $team_id . ' and taskplan.place_id = facility.place_id and taskplan.facility_serial = facility.o_serial')
+									->where('facility.place_id', $place_id)
+									->findAll();
 		
-		return $this->respond($taskplan_list);
+		
+		$target_time = Time::now()->subDays(3);
+
+		$recent_task = $FacilityModel->select('facility.*')
+									->orderBy('facility.serial', 'ASC')
+									->distinct()
+									->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
+									->join('task', 'task.team_id = "' . $team_id . '" and task.created_at > "' . $target_time . '" and task.place_id = facility.place_id and task.facility_serial = facility.o_serial', 'inner', false)
+									//->join('taskplan', 'taskplan.place_id = facility.place_id and taskplan.facility_serial = facility.o_serial', 'left outer')
+									->where('facility.place_id', $place_id)
+									->findAll();
+
+		$data = [
+
+			'plan' => $plan_task,
+			'recent' => $recent_task,
+		
+		];
+
+		return $this->respond($data);
 	}
 	
 	public function taskplan_edit() {

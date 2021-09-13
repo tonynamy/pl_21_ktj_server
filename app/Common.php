@@ -13,3 +13,31 @@
  *
  * @link: https://codeigniter4.github.io/CodeIgniter4/
  */
+
+ function getTypeText($type) {
+
+    if($type==1) {
+        return "설비";
+    } else if($type==2) {
+        return "전기";
+    } else if($type==3) {
+        return "건축";
+    } else {
+        return "기타";
+    }
+
+ }
+
+ function getTaskTypeText($type) {
+
+    if($type==1) {
+        return "설치";
+    } else if($type==2) {
+        return "수정";
+    } else if($type==3) {
+        return "해체";
+    } else {
+        return "기타";
+    }
+
+ }

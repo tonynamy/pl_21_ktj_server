@@ -33,7 +33,7 @@
                             <div class="item" data-value="4">기타</div>
                             <div class="item" data-value="o">원도면</div>
                             <div class="item" data-value="r">수정도면</div>
-                            <div class="item" data-value="v">승인도면</div>
+                            <div class="item" data-value="l">최종도면</div>
                             <div class="item" data-value="a">설치전</div>
                             <div class="item" data-value="b">설치중</div>
                             <div class="item" data-value="c">승인완료</div>
@@ -194,7 +194,7 @@
 
                         ?>
 
-                        <tr align="center">
+                        <tr align="center" data-id="<?=$facility['id']?>">
                             <td style="height: 52px; <?= $serial_fontsize ?>"><?= $facility['serial'] ?></td>
                             <td><?= $type_string ?></td>
                             <td style=<?= $super_manager_fontsize ?>><?= $facility['super_manager'] ?></td>
@@ -250,6 +250,14 @@
             arr.sort();
             state_num = arr.join("");
             location.href = '/fm/view_facility/' + state_num;
+
+        });
+
+        $('tr').click(function() {
+
+            var id = $(this).data('id');
+
+            location.href = '/fm/view_facility_info/' + id;
 
         });
 

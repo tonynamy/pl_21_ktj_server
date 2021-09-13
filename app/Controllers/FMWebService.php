@@ -3,6 +3,7 @@
 use App\Models\AttendanceModel;
 use App\Models\PlaceModel;
 use App\Models\FacilityModel;
+use App\Models\TaskModel;
 use App\Models\TaskPlanModel;
 use App\Models\TeamModel;
 use App\Models\TeamMateModel;
@@ -498,6 +499,7 @@ class FMWebService extends BaseController
                     $edit_finished_at = $edit_finished_at == "" ? null : $edit_finished_at;
                     $dis_started_at = $dis_started_at == "" ? null : $dis_started_at;
                     $dis_finished_at = $dis_finished_at == "" ? null : $dis_finished_at;
+                    $expired_at = null;
                     $memo = $memo == "" ? null : $memo;
 
                     //필수정보 없을시 통과
@@ -514,6 +516,7 @@ class FMWebService extends BaseController
                         'edit_finished_at',
                         'dis_started_at',
                         'dis_finished_at',
+                        'expired_at',
             
                     ];
 
@@ -561,7 +564,9 @@ class FMWebService extends BaseController
                     
                     //원도면에 값이 있고 신규등록하는 도면에 값이 없으면 원도면의 값을 대입
                     //for문으로 돌리고 싶은데 $started_at, $finished_at 같은 변수들은 어떻게 $i에 대입해야할지 모르겠네요
-                    foreach($previous_facilities as $previous_facility) {
+                    for($i = count($previous_facilities)-1; $i >= 0; $i--) {
+
+                        $previous_facility = $previous_facilities[$i];
 
                         if(!is_null($previous_facility['started_at']) && is_null($started_at)) {
                             $started_at = $previous_facility['started_at'];
@@ -580,6 +585,9 @@ class FMWebService extends BaseController
                         }
                         if(!is_null($previous_facility['dis_finished_at']) && is_null($dis_finished_at)) {
                             $dis_finished_at = $previous_facility['dis_finished_at'];
+                        }
+                        if(!is_null($previous_facility['expired_at']) && is_null($expired_at)) {
+                            $expired_at = $previous_facility['expired_at'];
                         }
                     }
                     
@@ -636,6 +644,7 @@ class FMWebService extends BaseController
                             'edit_finished_at' => $edit_finished_at,
                             'dis_started_at' => $dis_started_at,
                             'dis_finished_at' => $dis_finished_at,
+                            'expired_at' => $expired_at,
                             'memo' => $memo,
                         ];
 
@@ -865,23 +874,37 @@ class FMWebService extends BaseController
 
                     $is_type = true;
                 }
-
                 
             }
 
-            if($is_type==true) {
+            if($is_type == true) {
                 $FacilityModel->groupEnd();
                 $FacilityModel2->groupEnd();
             }
 
-            if(in_array("v", $state_array)) {
-                $select2 = $FacilityModel2->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false)
-                                    ->getCompiledSelect();
+            if(in_array("l", $state_array)) {
+                
+                $FacilityModel2->join('(SELECT MAX(r_num) as rr_num, o_serial as oo_serial from facility group by o_serial) ff', '(facility.o_serial = ff.oo_serial AND facility.r_num = ff.rr_num)', 'inner', false);
 
-                $select1 = $FacilityModel->getCompiledSelect();
-                $query = '('.$select1.') UNION ('.$select2.')';
-                //var_dump($query);exit;
-                $facilities_type = db_connect()->query($query)->getResult('array');
+
+                if(in_array("o", $state_array) || in_array("r", $state_array)) {
+
+                    $select2 = $FacilityModel2->getCompiledSelect();
+                    $select1 = $FacilityModel->getCompiledSelect();
+
+                    $query = '('.$select1.') UNION ('.$select2.')';
+
+                    //var_dump($query);exit;
+
+                    $facilities_type = db_connect()->query($query)->getResult('array');
+
+                }
+
+                else {
+
+                    $facilities_type = $FacilityModel2->findAll();
+                }
+                
             }
             else $facilities_type = $FacilityModel->findAll();
 
@@ -971,9 +994,27 @@ class FMWebService extends BaseController
                 
             ];
 
-            return view('view_facility.php', $data);
+            return view('view_facility', $data);
             
         }
+    }
+
+    public function view_facility_info($id) {
+
+        $FacilityModel = new FacilityModel();
+        $facility = $FacilityModel->where('id', $id)->first();
+
+        $TaskModel = new TaskModel();
+        $tasks = $TaskModel->select('task.*, team.name as team_name')->where('facility_serial', $facility['o_serial'])->join('team', 'team.id = task.team_id')->findAll();
+
+        $data = [
+            'facility' => $facility,
+            'tasks' => $tasks,
+
+        ];
+
+        
+        return view('view_facility_info', $data);
     }
 
 }

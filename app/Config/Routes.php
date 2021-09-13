@@ -61,6 +61,7 @@ $routes->group('fm', function($routes)
 
 	$routes->add('view_facility', 'FMWebService::view_facility');
 	$routes->add('view_facility/(:any)', 'FMWebService::view_facility/$1');
+	$routes->add('view_facility_info/(:any)', 'FMWebService::view_facility_info/$1');
 
 });
 
@@ -88,6 +89,7 @@ $routes->group('api', function($routes)
 	$routes->add('facility_edit_state', 'Home::facility_edit_state');
 	$routes->add('facility_edit_super_manager', 'Home::facility_edit_super_manager');
 	$routes->add('facility_edit_purpose', 'Home::facility_edit_purpose');
+	$routes->add('facility_edit_size', 'Home::facility_edit_size');
 	$routes->add('facility_edit_expired_at', 'Home::facility_edit_expired_at');
 	$routes->add('task_add', 'Home::task_add');
 	$routes->add('taskplan', 'Home::taskplan');
