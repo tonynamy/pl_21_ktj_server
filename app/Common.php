@@ -13,3 +13,47 @@
  *
  * @link: https://codeigniter4.github.io/CodeIgniter4/
  */
+
+ function getTypeText($type) {
+
+    switch($type) {
+        case "1":
+            return "설비";
+        case "2":
+            return "전기";
+        case "3":
+            return "건축";
+        default:
+            return "기타";
+    }
+ }
+
+ function getTaskTypeText($type) {
+     
+    switch($type) {
+        case "1":
+            return "설치";
+        case "2":
+            return "수정";
+        case "3":
+            return "해체";
+        default:
+            return "기타";
+    }
+ }
+
+ function getUserLevel($level) {
+     
+    switch($level) {
+        case "0":
+            return "대기자";
+        case "1":
+            return "팀장";
+        case "2":
+            return "관리자";
+        case "3":
+        case "4":
+            return "최고관리자";
+    }
+ }
+ 

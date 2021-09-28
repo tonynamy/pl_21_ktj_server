@@ -78,5 +78,5 @@ defined('EXIT_DATABASE')       || define('EXIT_DATABASE', 8); // database error
 defined('EXIT__AUTO_MIN')      || define('EXIT__AUTO_MIN', 9); // lowest automatically-assigned error code
 defined('EXIT__AUTO_MAX')      || define('EXIT__AUTO_MAX', 125); // highest automatically-assigned error code
 
-defined('TYPE_ATTENDANCE_ON')   || define('TYPE_ATTENDANCE_ON', 0);
-defined('TYPE_ATTENDANCE_OFF')  || define('TYPE_ATTENDANCE_OFF', 1);
+defined('TYPE_ATTENDANCE_ON') || define('TYPE_ATTENDANCE_ON', 0);
+defined('TYPE_ATTENDANCE_OFF') || define('TYPE_ATTENDANCE_OFF', 1);

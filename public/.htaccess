@@ -15,7 +15,7 @@ Options All -Indexes
 	# change the following line to match the subfolder you need.
 	# http://httpd.apache.org/docs/current/mod/mod_rewrite.html#rewritebase
 	# RewriteBase /
-	
+
 	# Redirect Trailing Slashes...
 	RewriteCond %{REQUEST_FILENAME} !-d
 	RewriteCond %{REQUEST_URI} (.+)/$
@@ -31,7 +31,6 @@ Options All -Indexes
     # request to the front controller, index.php
 	RewriteCond %{REQUEST_FILENAME} !-f
 	RewriteCond %{REQUEST_FILENAME} !-d
-	RewriteCond %{THE_REQUEST} !/phpmyadmin [NC]
 	RewriteRule ^([\s\S]*)$ index.php/$1 [L,NC,QSA]
 
 	# Ensure Authorization header is passed along

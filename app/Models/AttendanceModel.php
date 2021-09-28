@@ -2,8 +2,8 @@
 
 use CodeIgniter\Model;
 
-class AttendanceModel extends Model {
-
+class AttendanceModel extends Model
+{
     protected $table      = 'attendance';
     protected $primaryKey = 'id';
 
@@ -12,7 +12,7 @@ class AttendanceModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['user_id', 'type'];
+    protected $allowedFields = ['teammate_id', 'type', 'created_at'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';
@@ -22,5 +22,6 @@ class AttendanceModel extends Model {
     protected $validationRules    = [];
     protected $validationMessages = [];
     protected $skipValidation     = false;
+
 
 }

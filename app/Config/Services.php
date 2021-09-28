@@ -31,11 +31,11 @@ class Services extends BaseService
 
 	public static function Authentication($getShared = true)
 	{
-	    if ($getShared)
-	    {
-	        return static::getSharedInstance('Authentication');
-	    }
+		if ($getShared) {
+			return static::getSharedInstance('Authentication');
+		}
 
-	    return new \App\Authentication\Authentication();
-	}
+		return new \App\Authentication\Authentication();
+	 }
+
 }

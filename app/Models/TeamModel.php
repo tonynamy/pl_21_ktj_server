@@ -12,7 +12,7 @@ class TeamModel extends Model {
     protected $returnType     = 'array';
     protected $useSoftDeletes = true;
 
-    protected $allowedFields = ['name', 'leader_id'];
+    protected $allowedFields = ['name', 'place_id'];
 
     protected $useTimestamps = false;
     protected $createdField  = 'created_at';
