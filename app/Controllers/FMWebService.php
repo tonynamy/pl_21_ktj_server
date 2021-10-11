@@ -1071,6 +1071,27 @@ class FMWebService extends BaseController
         return view('view_facility_info.php', $data);
     }
 
+    public function edit_facility_info() {
+
+        $id = $_POST['id'] ?? null;
+        $data = $_POST['data'] ?? null;
+        $type = $_POST['type'] ?? null;
+
+        $FacilityModel = new FacilityModel();
+        $FacilityModel->where('id', $id);
+
+        if($type == 1) {
+
+            $FacilityModel->set('type', getTypeInt($data));
+        }
+
+        $FacilityModel->update();       
+
+
+        return $this->alert('설비 정보가 변경되었습니다.');
+
+    }
+
     /*-------------------------------------------현장관리-------------------------------------------*/
 
     public function set_place() {

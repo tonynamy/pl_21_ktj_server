@@ -63,6 +63,7 @@ $routes->group('fm', function($routes)
 	$routes->add('view_facility', 'FMWebService::view_facility');
 	$routes->add('view_facility/(:any)', 'FMWebService::view_facility/$1');
 	$routes->add('view_facility_info/(:num)', 'FMWebService::view_facility_info/$1');
+	$routes->add('edit_facility_info', 'FMWebService::edit_facility_info');
 
 	$routes->add('view_productivity', 'FMWebService::view_productivity/$1');
 	$routes->add('view_productivity/(:segment)', 'FMWebService::view_productivity/$1');
