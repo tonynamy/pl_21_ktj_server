@@ -1200,9 +1200,9 @@ class FMWebService extends BaseController
             $TaskModel = new TaskModel();
 
             $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, type')
-                        ->join('(SELECT MAX(manday) as manday_max, facility_serial from task group by facility_serial) t', '(t.facility_serial = task.facility_serial)', 'inner', false)
-                        ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task group by facility_serial) as tt', '(tt.facility_serial = task.facility_serial)', 'inner', false)
-                        ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
+                        ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', '(t.facility_serial = task.facility_serial)', 'inner', false)
+                        ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', '(tt.facility_serial = task.facility_serial)', 'inner', false)
+                        ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
                         ->where('task.type', 1)
                         ->where('task.team_id', $team_id)
                         ->where('task.created_at >= ', $start_time)
