@@ -69,6 +69,10 @@ $routes->group('fm', function($routes)
 	$routes->add('view_productivity/(:segment)', 'FMWebService::view_productivity/$1');
 	$routes->add('view_productivity/(:segment)/(:any)', 'FMWebService::view_productivity/$1/$2', ['as' => 'view_productivity']);
 
+	$routes->add('view_safe_point', 'FMWebService::view_safe_point/$1');
+	$routes->add('view_safe_point/(:segment)', 'FMWebService::view_safe_point/$1');
+	$routes->add('view_safe_point/(:segment)/(:any)', 'FMWebService::view_safe_point/$1/$2', ['as' => 'view_safe_point']);
+
 	$routes->add('set_place', 'FMWebService::set_place');
 	$routes->add('change_place_name', 'FMWebService::change_place_name');
 

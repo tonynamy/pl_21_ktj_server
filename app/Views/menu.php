@@ -56,6 +56,7 @@
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_attendance'">출퇴근 조회</button>
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_facility'">작업 조회</button>
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_productivity'">생산성 조회</button>
+                        <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_safe_point'">안전점수 조회</button>
                     </div>
                     
                     <?php if($level == 3 || $level ==4) : ?>

@@ -3,10 +3,12 @@
 use App\Models\AttendanceModel;
 use App\Models\PlaceModel;
 use App\Models\FacilityModel;
+use App\Models\SafePointModel;
 use App\Models\TaskModel;
 use App\Models\TaskPlanModel;
 use App\Models\TeamModel;
 use App\Models\TeamMateModel;
+use App\Models\TeamSafePointModel;
 use App\Models\UserModel;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
@@ -1251,6 +1253,70 @@ class FMWebService extends BaseController
             ];
 
             return view('view_productivity.php', $data);
+            
+        }
+    }
+
+    //--------------안전관리 조회
+
+    public function view_safe_point($team_id = null, $_target_time = null) {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+
+            if($_target_time == null || !is_numeric($_target_time)) {
+                $target_time = Time::now();
+            } else {
+                $target_time = Time::createFromTimestamp($_target_time);
+            }
+
+            $start_time = $target_time;
+            $end_time = $target_time;
+
+            $year = $target_time->getYear();
+            $month = $target_time->getMonth();
+
+            $start_time = $start_time->setMonth($month)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+
+            if($month == 12) {
+
+                $end_time = $end_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+
+            } else {
+
+                $end_time = $end_time->setMonth($month+1)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+
+            }
+
+            $TeamModel = new TeamModel();
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->findAll();            
+
+            $TeamSafePointModel = new TeamSafePointModel();
+            $SafePointModel = new SafePointModel();
+
+            $safe_points = $TeamSafePointModel
+                            ->select('sp.name as name, sp.point as point')
+                            ->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
+                            ->where('team_id', $team_id)
+                            ->where('team_safe_point.created_at >= ', $start_time)
+                            ->where('team_safe_point.created_at < ', $end_time)
+                            ->findAll();
+                                
+
+            $data = [              
+                'this_team' => $team_id,
+
+                'teams'=> $teams,
+
+                'safe_points'=> $safe_points,
+
+                'target_time' => $target_time, 
+            ];
+
+            return view('view_safe_point.php', $data);
             
         }
     }
