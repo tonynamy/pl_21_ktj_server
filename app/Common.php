@@ -28,6 +28,20 @@
     }
  }
 
+ function getTypeInt($type) {
+
+    switch($type) {
+        case "설비":
+            return "1";
+        case "전기":
+            return "2";
+        case "건축":
+            return "3";
+        default:
+            return "4";
+    }
+ }
+
  function getTaskTypeText($type) {
      
     switch($type) {
