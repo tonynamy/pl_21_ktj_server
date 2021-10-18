@@ -8,6 +8,8 @@ use App\Models\TaskPlanModel;
 use App\Models\TeamModel;
 use App\Models\TeamMateModel;
 use App\Models\UserModel;
+use App\Models\SafePointModel;
+use App\Models\TeamSafePointModel;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
 
@@ -1071,6 +1073,25 @@ class FMWebService extends BaseController
         return view('view_facility_info.php', $data);
     }
 
+    public function edit_facility_info() {
+
+        $id = $_POST['id'] ?? null;
+        $data = $_POST['data'] ?? null;
+        $type = $_POST['type'] ?? null;
+
+        $FacilityModel = new FacilityModel();
+        $FacilityModel->where('id', $id);
+
+        if($type == 1) {
+            $FacilityModel->set('type', getTypeInt($data));
+        }
+
+        $FacilityModel->update();
+
+        return $this->alert('설비 정보가 변경되었습니다.');
+
+    }
+
     /*-------------------------------------------현장관리-------------------------------------------*/
 
     public function set_place() {
@@ -1160,73 +1181,126 @@ class FMWebService extends BaseController
     
     /*-----------------------------------------생산성조회-----------------------------------------*/
 
+    public function get_productivity_task($team_id, $start_time, $end_time) {
+
+        $TaskModel = new TaskModel();
+        
+        $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, type')
+                                ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', 't.facility_serial = task.facility_serial', 'inner', false)
+                                ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', 'tt.facility_serial = task.facility_serial', 'inner', false)
+                                ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
+                                ->where('task.type', 1)
+                                ->where('task.team_id', $team_id)
+                                ->where('task.created_at >= ', $start_time)
+                                ->where('task.created_at < ', $end_time)
+                                ->groupBy('task.facility_serial, ttt.size_current, ttt.is_square_current')
+                                ->findAll();
+
+        return $tasks;
+        
+    }
+
+    public function get_productivity_manday($team_id, $start_time, $end_time) {
+
+        $TaskModel = new TaskModel();
+
+        $tasks_manday = $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
+                                                    ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
+                                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->groupEnd()
+                                                    ->where('task.team_id', $team_id)
+                                                    ->where('task.created_at >= ', $start_time)
+                                                    ->where('task.created_at < ', $end_time)
+                                                    ->groupBy('s_created_at')
+                                                    ->orderBy('s_created_at', 'ASC')
+                                                    ->findAll();
+
+        return $tasks_manday;
+
+    }
+
     
-    public function view_productivity($team_id = null, $_target_time = null) {
+    public function view_productivity($_target_time = 0) {
 
         if(!$this->auth->is_logged_in()) {
 
 			return $this->login_fail();
 
         } else {
-
+            
             if($_target_time == null || !is_numeric($_target_time)) {
                 $target_time = Time::now();
             } else {
                 $target_time = Time::createFromTimestamp($_target_time);
             }
-
-            $start_time = $target_time;
-            $end_time = $target_time;
-
+            
             $year = $target_time->getYear();
             $month = $target_time->getMonth();
 
-            $start_time = $start_time->setMonth($month)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+            $start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
 
             if($month == 12) {
 
-                $end_time = $end_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+                $end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
 
             } else {
 
-                $end_time = $end_time->setMonth($month+1)->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+                $end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
 
             }
-            
 
             $TeamModel = new TeamModel();
-            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->findAll();
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+            
+            $team_ids = array_map(function($team) {
+                return $team['id'];
+            }, $teams);
 
-            $TaskModel = new TaskModel();
+            $totals_cube = [];
+            $totals_square = [];
+            $totals_manday = [];
 
-            $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, type')
-                        ->join('(SELECT MAX(manday) as manday_max, facility_serial from task group by facility_serial) t', '(t.facility_serial = task.facility_serial)', 'inner', false)
-                        ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task group by facility_serial) as tt', '(tt.facility_serial = task.facility_serial)', 'inner', false)
-                        ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
-                        ->where('task.type', 1)
-                        ->where('task.team_id', $team_id)
-                        ->where('task.created_at >= ', $start_time)
-                        ->where('task.created_at < ', $end_time)
-                        ->groupBy('task.facility_serial, ttt.size_current, ttt.is_square_current')
-                        ->findAll();
+            foreach($team_ids as $team_id) {
 
-            $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
-                                    ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
-                                    ->where('task.team_id', $team_id)
-                                    ->where('task.created_at >= ', $start_time)
-                                    ->where('task.created_at < ', $end_time)
-                                    ->groupBy("s_created_at")
-                                    ->orderBy('s_created_at', 'asc')
-                                    ->findAll();
+                $tasks = $this->get_productivity_task($team_id, $start_time, $end_time);
+                $mandays = $this->get_productivity_manday($team_id, $start_time, $end_time);
+    
+                $total_cube = 0; // 수평비계
+                $total_square = 0; // 달대비계
+                $total_manday = 0; // 맨데이
+    
+                foreach($tasks as $task) {
+    
+                    if($task['is_square_current'] == 0 ) { // 수평 비계
+    
+                        $total_cube += $task['size_current'] / $task['manday_max'];
+    
+                    } else if($task['is_square_current'] == 1 ) { // 달대 비계
+    
+                        $total_square += $task['size_current'] / $task['manday_max'];
+    
+                    }
+                }
+    
+                foreach($mandays as $manday) {
+    
+                    $total_manday += $manday['manday_max'];
+    
+                }
 
-            $data = [              
-                'this_team' => $team_id,
+                $totals_cube[$team_id] = $total_cube;
+                $totals_square[$team_id] = $total_square;
+                $totals_manday[$team_id] = $total_manday;
 
-                'teams'=> $teams,
-                'tasks' => $tasks,
-                'tasks_manday' => $tasks_manday,
+            }
 
-                'target_time' => $target_time, 
+            $data = [      
+                'teams' => $teams,
+                        
+                'target_time' => $target_time,
+
+                'totals_cube' => $totals_cube,
+                'totals_square' => $totals_square,
+                'totals_manday' => $totals_manday,
             ];
 
             return view('view_productivity.php', $data);
@@ -1234,6 +1308,309 @@ class FMWebService extends BaseController
         }
     }
 
+    public function view_productivity_team($team_id = 0, $_target_time = 0) {
 
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+            
+            if($_target_time == null || !is_numeric($_target_time)) {
+                $target_time = Time::now();
+            } else {
+                $target_time = Time::createFromTimestamp($_target_time);
+            }
+            
+            $year = $target_time->getYear();
+            $month = $target_time->getMonth();
+
+            $start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            if($month == 12) {
+
+                $end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            } else {
+
+                $end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            }
+
+
+            $TeamModel = new TeamModel();
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+            $this_team = $TeamModel->where('id', $team_id)->first();
+
+            $TaskModel = new TaskModel();
+
+            $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, type')
+                                ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', 't.facility_serial = task.facility_serial', 'inner', false)
+                                ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', 'tt.facility_serial = task.facility_serial', 'inner', false)
+                                ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
+                                ->where('task.type', 1)
+                                ->where('task.team_id', $team_id)
+                                ->where('task.created_at >= ', $start_time)
+                                ->where('task.created_at < ', $end_time)
+                                ->groupBy('task.facility_serial, ttt.size_current, ttt.is_square_current')
+                                ->findAll();
+
+            $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
+                                    ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
+                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->groupEnd()
+                                    ->where('task.team_id', $team_id)
+                                    ->where('task.created_at >= ', $start_time)
+                                    ->where('task.created_at < ', $end_time)
+                                    ->groupBy('s_created_at')
+                                    ->orderBy('s_created_at', 'ASC')
+                                    ->findAll();
+
+            $data = [      
+                'teams' => $teams,
+                        
+                'this_team' => $this_team,
+                'target_time' => $target_time,
+
+                'tasks' => $tasks,
+                'tasks_manday' => $tasks_manday,
+            ];
+
+            return view('view_productivity_team.php', $data);
+            
+        }
+    }
+
+    /*-----------------------------------------안전점수조회-----------------------------------------*/
+
+    public function add_safe_point() {
+
+        $name = $_POST['name'] ?? null;
+        $point = $_POST['point'] ?? null;
+
+        if($name == null || $point == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $SafePointModel = new SafePointModel();
+
+        $SafePointModel->insert([
+            'name' => $name,
+            'point' => $point,
+        ]);
+
+        return $this->alert('안전점수가 추가되었습니다.');
+
+
+    }
+
+    public function edit_safe_point() {
+
+        $id = $_POST['id'] ?? null;
+        $name = $_POST['name'] ?? null;
+        $point = $_POST['point'] ?? null;
+
+        if($id == null || $name == null || $point == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $SafePointModel = new SafePointModel();
+
+        $SafePointModel->update($id, [
+            'name' => $name,
+            'point' => $point,
+        ]);
+
+        return $this->alert('안전점수가 수정되었습니다.');
+
+
+    }
+
+    public function add_team_safe_point($team_id, $point_id) {
+
+        if($team_id == null || $point_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TeamSafePointModel = new TeamSafePointModel();
+
+        $TeamSafePointModel->insert([
+            'team_id' => $team_id,
+            'safe_point_id' => $point_id,
+        ]);
+
+        return $this->alert('안전점수가 부여되었습니다.');
+
+
+    }
+
+    public function edit_team_safe_point() {
+
+        $team_safe_point_id = $_POST['team_safe_point_id'] ?? null;
+        $point_id = $_POST['point_id'] ?? null;
+
+        if($team_safe_point_id == null || $point_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TeamSafePointModel = new TeamSafePointModel();
+
+        if($point_id < 0) {
+            $TeamSafePointModel->where('id', $team_safe_point_id)->delete();
+        } else {
+            $TeamSafePointModel->update($team_safe_point_id, [
+                'safe_point_id' => $point_id,
+            ]);
+        }
+
+        return $this->alert('안전점수가 부여되었습니다.');
+
+
+    }
+
+    public function view_safe_point($_target_time = 0) {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+            
+            if($_target_time == null || !is_numeric($_target_time)) {
+                $target_time = Time::now();
+            } else {
+                $target_time = Time::createFromTimestamp($_target_time);
+            }
+            
+            $year = $target_time->getYear();
+            $month = $target_time->getMonth();
+
+            $start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            if($month == 12) {
+
+                $end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            } else {
+
+                $end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            }
+
+            $TeamModel = new TeamModel();
+            $SafePointModel = new SafePointModel();
+
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+
+            $team_ids = array_map(function($team) {
+                return $team['id'];
+            }, $teams);
+
+            $safe_points = $SafePointModel->findAll();
+
+            $TeamSafePointModel = new TeamSafePointModel();
+
+            $all_team_safe_points = $TeamSafePointModel
+                            ->select('sp.name as name, sp.point as point, team_id, sp.created_at as created_at')
+                            ->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
+                            ->whereIn('team_id', $team_ids)
+                            ->where('team_safe_point.created_at >= ', $start_time)
+                            ->where('team_safe_point.created_at < ', $end_time)
+                            ->findAll();
+
+            $team_safe_points = [];
+
+            foreach($all_team_safe_points as $team_safe_point) {
+
+                if(!array_key_exists($team_safe_point['team_id'], $team_safe_points))
+                    $team_safe_points[$team_safe_point['team_id']] = 0;
+                    
+                $team_safe_points[$team_safe_point['team_id']] += $team_safe_point['point'];
+
+
+            }
+
+
+            $data = [      
+                'teams' => $teams,
+                
+                'safe_points' => $safe_points,
+
+                'team_safe_points' => $team_safe_points,
+
+                'target_time' => $target_time,
+            ];
+
+            return view('view_safe_point.php', $data);
+            
+        }
+    }
+
+    public function view_safe_point_team($team_id = 0, $_target_time = 0) {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+            
+            if($_target_time == null || !is_numeric($_target_time)) {
+                $target_time = Time::now();
+            } else {
+                $target_time = Time::createFromTimestamp($_target_time);
+            }
+            
+            $year = $target_time->getYear();
+            $month = $target_time->getMonth();
+
+            $start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            if($month == 12) {
+
+                $end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            } else {
+
+                $end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+            }
+
+
+            $TeamModel = new TeamModel();
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+            $this_team = $TeamModel->where('id', $team_id)->first();
+
+            $TeamSafePointModel = new TeamSafePointModel();
+            //$SafePointModel = new SafePointModel();
+
+            $team_safe_points = $TeamSafePointModel
+                            ->select('team_safe_point.id as id,  sp.name as name, sp.point as point, sp.created_at as created_at')
+                            ->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
+                            ->where('team_id', $team_id)
+                            ->where('team_safe_point.created_at >= ', $start_time)
+                            ->where('team_safe_point.created_at < ', $end_time)
+                            ->findAll();
+
+
+            $SafePointModel = new SafePointModel();
+
+            $safe_points = $SafePointModel->findAll();
+        
+
+            $data = [      
+                'teams' => $teams,
+                        
+                'this_team' => $this_team,
+                
+                'team_safe_points' => $team_safe_points,
+
+                'safe_points' => $safe_points,
+
+                'target_time' => $target_time,
+            ];
+
+            return view('view_safe_point_team.php', $data);
+            
+        }
+    }
 
 }

@@ -21,9 +21,9 @@
     ?>
 
     <div style="width:fit-content; margin:0 auto; padding:16px;">
-        <div class="uiframe" style="width:400px; padding-left:0px; padding-right:0px;">
+        <div class="uiframe" style="width:400px;">
 
-            <div style="height:200px; display:flex; flex-direction:column; text-align:center; padding-top:16px;">
+            <div style="height:216px; text-align:center; padding:16px;">
                 
                     <div>
                         <img src="/static/fmenc_logo.jpg">
@@ -40,9 +40,9 @@
 
             </div>
 
-            <div class="ui divider"></div>
+            <div style="height:1px; background-color:#e8e9e9;"></div>
 
-            <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; margin-top:4px;">
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; padding:16px;">
                 
                 <div style="width:305px;">
                     <label>등록</label>
@@ -56,11 +56,12 @@
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_attendance'">출퇴근 조회</button>
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_facility'">작업 조회</button>
                         <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_productivity'">생산성 조회</button>
+                        <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/view_safe_point'">안전점수 조회</button>
                     </div>
                     
                     <?php if($level == 3 || $level ==4) : ?>
                         <label>관리</label>
-                        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:4px; margin-bottom:8px;">
+                        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; margin-top:4px;">
                             <?php if($level ==4) : ?>
                                 <button class="bluebutton" type="button" style="width:150px; margin-bottom:8px;" onclick="location.href='/fm/set_place'">현장 관리</button>
                             <?php endif ?>
