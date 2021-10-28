@@ -45,6 +45,7 @@ $routes->group('fm', function($routes)
    $routes->add('menu', 'FMWebService::menu');
    $routes->add('change_password', 'FMWebService::change_password');
    $routes->add('add_team', 'FMWebService::add_team');
+   $routes->add('add_team_result', 'FMWebService::add_team_result');
    $routes->add('load_team_excel', 'FMWebService::load_team_excel');
    $routes->add('parse_team_data', 'FMWebService::parse_team_data');
    $routes->add('add_facility', 'FMWebService::add_facility');
@@ -90,6 +91,7 @@ $routes->group('fm', function($routes)
 
    $routes->add('set_user', 'FMWebService::set_user');
 
+
 });
 
 //앱
@@ -124,6 +126,9 @@ $routes->group('api', function($routes)
 	$routes->add('taskplan_edit', 'Home::taskplan_edit');
 	$routes->add('taskplan_delete', 'Home::taskplan_delete');
 	$routes->add('super_manager', 'Home::super_manager');
+
+   $routes->add('productivity', 'Home::productivity');
+   $routes->add('dashboard', 'Home::dashboard');
 
 	//테스트
 	$routes->add('test', 'Home::test');

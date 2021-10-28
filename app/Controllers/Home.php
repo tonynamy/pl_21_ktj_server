@@ -12,6 +12,7 @@ use App\Models\AttendanceModel;
 use App\Models\FacilityModel;
 use App\Models\TaskModel;
 use App\Models\TaskPlanModel;
+use App\Models\TeamSafePointModel;
 
 class Home extends ResourceController
 {
@@ -1223,7 +1224,9 @@ class Home extends ResourceController
 		}
 
 		$team_id = $_POST['team_id'] ?? null;
-		$facility_id = $_POST['facility_id'] ?? null;
+		$facility_id = $_POST['facility_id'] ?? null; // 이전버전을 위해 남겨둠
+		$place_id = $_POST['place_id'] ?? null;
+		$facility_serial = $_POST['facility_serial'] ?? null;
 		$manday = $_POST['manday'] ?? null;
 		$type = $_POST['type'] ?? null;
 
@@ -1239,7 +1242,7 @@ class Home extends ResourceController
 
 		];
 
-		if($team_id == null || $facility_id == null || $manday == null || $type == null) {
+		if($team_id == null || $manday == null || $type == null) {
 			return $this->failValidationError();
 		}
 
@@ -1248,65 +1251,77 @@ class Home extends ResourceController
 		$TaskModel = new TaskModel();
 		$TaskPlanModel = new TaskPlanModel();
 
-		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? 0;
-		$this_facility = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first();
-		
-		if($place_id == 0 || $this_facility == null) {
+		//이전버전을 위한 것
+		if($place_id == null) {
+			$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? 0;
+		}
+		if($facility_id != null && $facility_serial == null) {
+			$this_facility = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first();
+			$facility_serial = $this_facility['o_serial'];
+			
+		//최신버전
+		} else {
+			$this_facility = $FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial)->first();
+		}
+
+		if($place_id == 0 || $facility_serial == "") {
 			return $this->failForbidden();
 		}
 		
-		$facility_serial = $this_facility['o_serial'];
-		if($this_facility['danger_result'] != 0) {
-			$size = $this_facility['danger_result'];
-			$is_square = 1;
+		if($this_facility != null) {
+			if($this_facility['danger_result'] != 0) {
+				$size = $this_facility['danger_result'];
+				$is_square = 1;
+			} else {
+				$size = $this_facility['cube_result'];
+				$is_square = 0;
+			}
+
+			$taskplan_type = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->first()['type'] ?? null;
+		
+			$this_facility_state = 0;
+			for($i = count($state_column)-1; $i >= 0; $i--) {
+				if(!is_null($this_facility[$state_column[$i]])) {
+					$this_facility_state = $i;
+					break;
+				}
+			}
+			
+			$state_num = 0;
+			if($type == 1) {
+				$state_num = 1;
+			} else if($type == 2) {
+				$state_num = 3;
+			} else if($type == 3) {
+				$state_num = 5;
+			}
+	
+			//진행중인 작업인지 확인
+			$same_facility = $FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial)->where($state_column[$state_num] . ' !=', null)->first();
+	
+			if(is_null($same_facility) || ($taskplan_type == 2 && $this_facility_state == 4 && $type == 2)) {
+	
+				$FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial);
+				//처음 진행하는 작업이라면
+				if(is_null($same_facility)) {
+					//이전작업의 빈날짜를 모두 오늘로 채워넣기
+					for($i = $state_num; $i > 0; $i--) {
+						$FacilityModel->set($state_column[$i], "IF(" . $state_column[$i] . " IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
+					}
+				}
+	
+				//수정작업계획($type == 2)이 있고 현재진행상태는 수정완료($this_facility_state == 4)일때에 한해 수정버튼($type == 2)을 눌렸을시 수정완료일이 삭제된다
+				if($taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
+					$FacilityModel->set('edit_finished_at', null);
+				}
+				$FacilityModel->update();
+			}
+
 		} else {
-			$size = $this_facility['cube_result'];
+			$size = 0;
 			$is_square = 0;
 		}
 		
-		if($facility_serial == "") {
-			return $this->failForbidden();
-		}
-		
-		$taskplan_type = $TaskPlanModel->where('place_id', $place_id)->where('facility_serial', $facility_serial)->first()['type'] ?? null;
-		
-		$this_facility_state = 0;
-		for($i = count($state_column)-1; $i >= 0; $i--) {
-			if(!is_null($this_facility[$state_column[$i]])) {
-				$this_facility_state = $i;
-				break;
-			}
-		}
-		
-		$state_num = 0;
-		if($type == 1) {
-			$state_num = 1;
-		} else if($type == 2) {
-			$state_num = 3;
-		} else if($type == 3) {
-			$state_num = 5;
-		}
-
-		//진행중인 작업인지 확인
-		$same_facility = $FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial)->where($state_column[$state_num] . ' !=', null)->first();
-
-		if(is_null($same_facility) || $taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
-
-			$FacilityModel->where('place_id', $place_id)->where('o_serial', $facility_serial);
-			//처음 진행하는 작업이라면
-			if(is_null($same_facility)) {
-				//이전작업의 빈날짜를 모두 오늘로 채워넣기
-				for($i = $state_num; $i > 0; $i--) {
-					$FacilityModel->set($state_column[$i], "IF(" . $state_column[$i] . " IS NULL, '" . Time::now() . "', " . $state_column[$i] . ")", false);
-				}
-			}
-
-			//수정작업계획($type == 2)이 있고 현재진행상태는 수정완료($this_facility_state == 4)일때에 한해 수정버튼($type == 2)을 눌렸을시 수정완료일이 삭제된다
-			if($taskplan_type == 2 && $this_facility_state == 4 && $type == 2) {
-				$FacilityModel->set('edit_finished_at', null);
-			}
-			$FacilityModel->update();
-		}
 
 		$success = true;
 
@@ -1347,6 +1362,7 @@ class Home extends ResourceController
 		}
 		
 		$FacilityModel = new FacilityModel();
+		$TaskPlanModel = new TaskPlanModel();
 		
 		if($this->auth->user()['place_id'] == null) {
 			$FacilityModel->where('place_id', $place_id);
@@ -1380,12 +1396,20 @@ class Home extends ResourceController
 			return $facility['taskplan'] == 3;
 		}));
 
+		$etc_taskplan = $TaskPlanModel->select('taskplan.*, team.name as team_name')
+									->join('team', 'team.id = taskplan.team_id')
+									->where('taskplan.place_id', $place_id)
+									->where('taskplan.type', 4)
+									->findAll();
+
+
 		$data = [
 
 			'expire' => $expire_facilities,
 			'construct' => $construct_planned_facilities,
 			'edit' => $edit_planned_facilities,
 			'destruct' => $destruct_planned_facilities,
+			'etc' => $etc_taskplan,
 
 		];
 
@@ -1404,8 +1428,9 @@ class Home extends ResourceController
 			return $this->failValidationError();
 		}
 
-		$FacilityModel = new FacilityModel();
 		$TeamModel = new TeamModel();
+		$FacilityModel = new FacilityModel();
+		$TaskPlanModel = new TaskPlanModel();
 		
 		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'];
 
@@ -1416,7 +1441,8 @@ class Home extends ResourceController
 									->where('facility.place_id', $place_id)
 									->findAll();
 		
-		
+		$etc_plan = $TaskPlanModel->where('team_id', $team_id)->where('type', 4)->findAll();
+
 		$target_time = Time::now()->subDays(3);
 
 		$recent_task = $FacilityModel->select('facility.*')
@@ -1431,6 +1457,7 @@ class Home extends ResourceController
 		$data = [
 
 			'plan' => $plan_task,
+			'etc_plan' => $etc_plan,
 			'recent' => $recent_task,
 		
 		];
@@ -1444,20 +1471,28 @@ class Home extends ResourceController
 			return $this->failUnauthorized();
 		}
 
-		$facility_id = $_POST['facility_id'] ?? null;
+		$facility_id = $_POST['facility_id'] ?? null; // 이전버전을 위해 남겨둠
+
+		$place_id = $_POST['place_id'] ?? null;
+		$facility_serial = $_POST['facility_serial'] ?? null;
 		$team_id = $_POST['team_id'] ?? null;
 		$type = $_POST['type'] ?? null;
 
-		if($facility_id == null || $team_id == null || $type == null) {
+		if($team_id == null || $type == null) {
 			return $this->failValidationError();
 		}
 
 		$TeamModel = new TeamModel();
-		$FacilityModel = new FacilityModel();
 		$TaskPlanModel = new TaskPlanModel();
 
-		$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? null;
-		$facility_serial = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first()['o_serial'] ?? null;
+		//이전버전을 위한 것
+		if($place_id == null) {
+			$place_id = $TeamModel->where('id', $team_id)->first()['place_id'] ?? null;
+		}
+		if($facility_id != null && $facility_serial == null) {
+			$FacilityModel = new FacilityModel();
+			$facility_serial = $FacilityModel->where('place_id', $place_id)->where('id', $facility_id)->first()['o_serial'] ?? null;
+		}
 
 		if($place_id == 0 || $facility_serial == "") {
 			return $this->failForbidden();
@@ -1499,16 +1534,18 @@ class Home extends ResourceController
 		
 		$facility_id = $_POST['facility_id'] ?? null;
 
-		if(is_null($facility_id)) {
-			return $this->failValidationError();
-		}
+		$place_id = $_POST['place_id'] ?? null;
+		$facility_serial = $_POST['facility_serial'] ?? null;
 
-		$FacilityModel = new FacilityModel();
 		$TaskPlanModel = new TaskPlanModel();
 
-		$this_facility = $FacilityModel->where('id', $facility_id)->first();
-		$place_id = $this_facility['place_id'];
-		$facility_serial = $this_facility['o_serial'];
+		//이전버전을 위한 것
+		if($facility_id != null && $place_id == null && $facility_serial == null) {
+			$FacilityModel = new FacilityModel();
+			$this_facility = $FacilityModel->where('id', $facility_id)->first();
+			$place_id = $this_facility['place_id'];
+			$facility_serial = $this_facility['o_serial'];
+		}
 
 		if($place_id == 0 || $facility_serial == "") {
 			return $this->failForbidden();
@@ -1528,6 +1565,28 @@ class Home extends ResourceController
 
 		if($success) return $this->respondUpdated();
 		else return $this->failServerError();
+	}
+
+	public function taskplan_etc() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+
+		$taskplan_id = $_POST['taskplan_id'] ?? null;
+
+		$TaskPlanModel = new TaskPlanModel();
+		$TaskModel = new TaskModel();
+
+		$etc_taskplan = $TaskPlanModel->where('id', $taskplan_id)->first();
+
+
+
+
+		$etc_taskplan['in_task'] = true;
+
+		return $this->respond($etc_taskplan);
+
 	}
 
 	/*-----------------------------------------담당자관련-----------------------------------------*/
@@ -1559,35 +1618,260 @@ class Home extends ResourceController
 		return $this->respond($info);
 	}
 
+	/*-------------------------------------------생산성-------------------------------------------*/
+
+	public function get_productivity_task($team_id, $start_time, $end_time) {
+
+        $TaskModel = new TaskModel();
+
+        $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, task.type, task.place_id')
+                            ->join('facility as f', '(f.o_serial = task.facility_serial AND f.place_id = task.place_id AND f.finished_at >= "' . $start_time->toDateTimeString() . '" AND f.finished_at < "' . $end_time->toDateTimeString() . '")', 'inner', false)
+                            ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', 't.facility_serial = task.facility_serial', 'inner', false)
+                            ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', 'tt.facility_serial = task.facility_serial', 'inner', false)
+                            ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
+                            ->where('task.type', 1)
+                            ->where('task.team_id', $team_id)
+                            ->groupBy('task.facility_serial, ttt.size_current, ttt.is_square_current, task.place_id')
+                            ->findAll();
+
+        return $tasks;
+    }
+
+    public function get_productivity_manday($team_id, $start_time, $end_time) {
+
+        $TaskModel = new TaskModel();
+
+        $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
+                                    ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
+                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->groupEnd()
+                                    ->where('task.team_id', $team_id)
+                                    ->where('task.created_at >= ', $start_time)
+                                    ->where('task.created_at < ', $end_time)
+                                    ->groupBy('s_created_at')
+                                    ->orderBy('s_created_at', 'ASC')
+                                    ->findAll();
+
+        return $tasks_manday;
+
+    }
+
+	public function productivity() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+
+		$place_id = $_POST['place_id'] ?? null;
+
+		if($place_id == null) {
+			return $this->failValidationError();
+		}
+
+		$_target_time = $_POST['target_time'] ?? null;
+		
+		if($_target_time == null || !is_numeric($_target_time)) {
+			$target_time = Time::now();
+		} else {
+			$target_time = Time::createFromTimestamp($_target_time);
+		}
+		
+		$year = $target_time->getYear();
+		$month = $target_time->getMonth();
+
+		$start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		if($month == 12) {
+
+			$end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		} else {
+
+			$end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		}
+		
+		$TeamModel = new TeamModel();
+		$teams = $TeamModel->where('place_id', $place_id)->orderBy('name', 'ASC')->findAll();
+
+		if(count($teams) == 0) {
+			return $this->failNotFound();
+		} 
+
+		$team_ids = array_map(function($team) {
+			return $team['id'];
+		}, $teams);
+
+		foreach($team_ids as $team_id) {
+
+			$tasks = $this->get_productivity_task($team_id, $start_time, $end_time);
+			$mandays = $this->get_productivity_manday($team_id, $start_time, $end_time);
+
+			$total_cube = 0; //수평비계
+			$total_square = 0; //달대비계
+			$total_manday = 0; //맨데이
+			
+			foreach($tasks as $task) {
+
+				if($task['is_square_current'] == 0) { //수평비계
+
+					$total_cube += $task['size_current'] / $task['manday_max'];
+
+				} else if($task['is_square_current'] == 1) { //달대비계
+				
+					$total_square += $task['size_current'] / $task['manday_max'];
+
+				}
+			}
+
+			foreach($mandays as $manday) {
+
+				$total_manday += $manday['manday_max'];
+
+			}
+
+			$totals_cube[$team_id] = $total_cube;
+			$totals_square[$team_id] = $total_square;
+			$totals_manday[$team_id] = $total_manday;
+
+		}
+		
+		$data = [
+
+			'teams' => $teams,
+			'totals_cube' => $totals_cube,
+			'totals_square' => $totals_square,
+			'totals_manday' => $totals_manday,
+
+		];
+
+
+		return $this->respond($data);
+
+	}
+
+	
+	public function dashboard() {
+
+		if(!$this->auth->is_logged_in()) {
+			return $this->failUnauthorized();
+		}
+		
+		$place_id = $_POST['place_id'] ?? null;
+		$team_id = $_POST['team_id'] ?? null;
+		$_target_time = $_POST['target_time'] ?? null;
+
+		if($place_id == null) {
+			return $this->failValidationError();
+		}
+		
+		$TeamModel = new TeamModel();
+		
+		if($this->auth->user()['place_id'] == null) {
+			$TeamModel->where('place_id', $place_id);
+		} else {
+			$TeamModel->where('place_id', $this->auth->user()['place_id']);
+		}
+
+		if($_target_time == null || !is_numeric($_target_time)) {
+			$target_time = Time::now();
+		} else {
+			$target_time = Time::createFromTimestamp($_target_time);
+		}
+		
+		$year = $target_time->getYear();
+		$month = $target_time->getMonth();
+
+		$start_time = $target_time->setMonth($month)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		if($month == 12) {
+
+			$end_time = $start_time->setYear($year+1)->setMonth(1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		} else {
+
+			$end_time = $start_time->setMonth($month+1)->setDay(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+		}
+
+		$TeamModel = new TeamModel();
+		$team = $TeamModel->where('id', $team_id)->first();
+
+		$tasks = $this->get_productivity_task($team_id, $start_time, $end_time);
+		$mandays = $this->get_productivity_manday($team_id, $start_time, $end_time);
+
+		$total_cube = 0; //수평비계
+		$total_square = 0; //달대비계
+		$total_manday = 0; //맨데이
+		
+		foreach($tasks as $task) {
+
+			if($task['is_square_current'] == 0) { //수평비계
+
+				$total_cube += $task['size_current'] / $task['manday_max'];
+
+			} else if($task['is_square_current'] == 1) { //달대비계
+			
+				$total_square += $task['size_current'] / $task['manday_max'];
+
+			}
+		}
+
+		foreach($mandays as $manday) {
+
+			$total_manday += $manday['manday_max'];
+
+		}
+
+		// 안전점수
+		$TeamSafePointModel = new TeamSafePointModel();
+		//$SafePointModel = new SafePointModel();
+
+		$team_safe_points = $TeamSafePointModel
+						->select('team_safe_point.id as id,  sp.name as name, sp.point as point, team_safe_point.created_at as created_at')
+						->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
+						->where('team_id', $team_id)
+						->where('team_safe_point.created_at >= ', $start_time)
+						->where('team_safe_point.created_at < ', $end_time)
+						->findAll();
+
+		$safe_points = 0;
+
+		foreach($team_safe_points as $team_safe_point) {
+
+			$safe_points += $team_safe_point['point'];
+
+		}
+
+		$data = [
+
+			'total_cube' => $total_cube,
+			'total_square' => $total_square,
+			'total_manday' => $total_manday,
+			'safe_points' => $safe_points
+
+		];
+
+		return $this->respond($data);
+
+
+		
+	}
+
+
+	/*-------------------------------------------안전점수-------------------------------------------*/
+
+	public function safe_point() {
+
+	}
+
+	public function safe_point_team() {
+
+	}
+
 	/*-------------------------------------------테스트-------------------------------------------*/
 
 	public function test() {
 	
-		$TeamModel = new TeamModel();
-		$TeamMateModel = new TeamMateModel();
-
-		$team_id = 24;
-
-		if(is_null($team_id) || is_null($TeamModel->where('id', $team_id)->first())) {
-			return $this->failValidationError();
-		}
-
-		$attendances = $TeamMateModel->select('tm.id as id, tm.name as name, tm.birthday as birthday, a.created_at as date, a.type as type')
-									->orderBy('tm.name', 'ASC')
-                            	  	->distinct()
-                          		  	->from('teammate as tm')
-                         	     	->join('attendance as a', '(a.teammate_id = tm.id and a.created_at >"'.$this->setTime()->toDateTimeString().'")', 'left outer')
-                          	    	->where('tm.team_id', $team_id)
-                              		->findAll();
-		
-		/*
-		$sortArr = array();
-		foreach($attendances as $value) {
-			$sortArr[] = $value['name'];
-		}
-		array_multisort($attendances, SORT_ASC, $sortArr);
-		*/
-		return $this->respond($attendances);
 
 	}
 
