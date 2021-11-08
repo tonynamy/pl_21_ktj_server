@@ -38,7 +38,7 @@
                             <thead class="full-width">
                                 <tr align="center">
                                     <th style="font-weight:normal;">일시</th>
-                                    <th style="font-weight:normal;">항목이름</th>
+                                    <th style="font-weight:normal;">내용</th>
                                     <th style="font-weight:normal;">점수</th>
                                 </tr>
                             </thead>
@@ -75,8 +75,9 @@
     
 </form>
 
-<div id="add_point" class="ui mini modal">
-    <div style="padding:8px;">
+<div id="add_point_modal" class="ui mini modal">
+
+    <div style="padding-top:4px; padding-bottom:4px">
 
         <?php foreach($safe_points as $safe_point) : ?>
 
@@ -88,22 +89,23 @@
 
 </div>
 
-<div id="edit_point" class="ui mini modal">
+<div id="edit_point_modal" class="ui mini modal">
 
-    <?php foreach($safe_points as $safe_point) : ?>
+    <div style="padding-top:4px; padding-bottom:4px">
 
-        <div class="edit_point_element" data-id="<?=$safe_point['id']?>" style="display:flex; justify-content:space-between; padding:16px;  cursor:pointer;"><span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span></div>
+        <?php foreach($safe_points as $safe_point) : ?>
 
-    <?php endforeach ?>
+            <div class="edit_point_element" data-id="<?=$safe_point['id']?>" style="display:flex; justify-content:space-between; padding:16px;  cursor:pointer;"><span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span></div>
 
-    <div class="edit_point_element" data-id="-1" style="padding:16px; cursor:pointer;">점수 삭제</div>
+         <?php endforeach ?>
+
+        <div class="edit_point_element" data-id="-1" style="padding:16px; cursor:pointer;">점수 무효</div>
+    </div>
 
     <form id="edit_point_form" class="ui form" method="POST" action="/fm/edit_team_safe_point">
         <input id="edit_point_sp_id" type="hidden" name="team_safe_point_id" />
         <input id="edit_point_point_id" type="hidden" name="point_id" />
     </form>
-
-   
 
 </div>
 
@@ -125,7 +127,7 @@
 
         $('button.add_point').click(function() {
 
-            $('#add_point').modal('show');
+            $('#add_point_modal').modal('show');
 
         });
         
@@ -133,7 +135,7 @@
 
             $('#edit_point_sp_id').val($(this).data('id'));
 
-            $('#edit_point').modal('show');
+            $('#edit_point_modal').modal('show');
 
         });
 

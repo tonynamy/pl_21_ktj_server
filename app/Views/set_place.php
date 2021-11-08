@@ -6,34 +6,35 @@
 
     <div style="width:fit-content; margin:0 auto; padding:16px;">
         <div class="uiframe" style="width:400px;">
-        
-        <i class="hamburger icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
 
-        <div style="height:1px; background-color:#e8e9e9; margin-top:16px; margin-bottom:8px;"></div>
+            <div style="padding:16px">
+                <i class="bars icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
+                <label>현장 관리</label>
+            </div>
 
-        <table class="ui very basic table" style="margin-top:-8px; margin-bottom:-8px;">
-        
-            <?php foreach($places as $place) : ?>
-                <tr>
-                    <td>
-                        <div class="ui left pointing dropdown">
-                            <?= $place['name'] ?>
-                            <div class="menu">
-                                <a class="item place_change" data-id="<?= $place['id'] ?>" href="#">현장명 변경</a>
-                                <a class="item place_delete" data-id="<?= $place['id'] ?>" href="#">현장기록 삭제</a>
+            <div style="height:1px; background-color:#e8e9e9;"></div>
+
+            <table style="padding-top:8px">
+
+                <?php foreach($places as $place) : ?>
+                    <tr>
+                        <td style="padding:8px 16px 8px 16px;">
+                            <div class="ui left pointing dropdown">
+                                <?= $place['name'] ?>
+                                <div class="menu">
+                                    <a class="item place_change" data-id="<?= $place['id'] ?>" href="#">현장명 변경</a>
+                                    <a class="item place_delete" data-id="<?= $place['id'] ?>" href="#">현장기록 삭제</a>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach ?>
+                        </td>
+                    </tr>
+                <?php endforeach ?>
 
-        </table>
+            </table>
 
-        <div style="height:1px; background-color:#e8e9e9; margin-top:8px;"></div>
-
-        <div align="right" style="margin-top:16px;">
-            <button class="bluebutton" type="button" id="new_place" style="width:100px">현장 추가</button>
-        </div>
+            <div align="right" style="padding:16px;">
+                <button class="bluebutton" type="button" id="new_place" style="width:100px">현장 추가</button>
+            </div>
 
         </div>
     </div>

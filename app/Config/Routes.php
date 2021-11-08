@@ -45,9 +45,10 @@ $routes->group('fm', function($routes)
    $routes->add('menu', 'FMWebService::menu');
    $routes->add('change_password', 'FMWebService::change_password');
    $routes->add('add_team', 'FMWebService::add_team');
-   $routes->add('add_team_result', 'FMWebService::add_team_result');
    $routes->add('load_team_excel', 'FMWebService::load_team_excel');
    $routes->add('parse_team_data', 'FMWebService::parse_team_data');
+   $routes->add('add_team_result', 'FMWebService::add_team_result');
+
    $routes->add('add_facility', 'FMWebService::add_facility');
    $routes->add('load_facility_excel', 'FMWebService::load_facility_excel');
    $routes->add('parse_facility_data', 'FMWebService::parse_facility_data');
@@ -65,32 +66,34 @@ $routes->group('fm', function($routes)
    $routes->add('view_facility/(:any)', 'FMWebService::view_facility/$1');
    $routes->add('view_facility_info/(:num)', 'FMWebService::view_facility_info/$1');
    $routes->add('edit_facility_info', 'FMWebService::edit_facility_info');
+   $routes->add('view_etc_task', 'FMWebService::view_etc_task');
+   $routes->add('view_etc_task_info', 'FMWebService::view_etc_task_info');
 
    $routes->add('view_productivity', 'FMWebService::view_productivity');
    $routes->add('view_productivity/(:num)', 'FMWebService::view_productivity/$1',                  ['as' => 'view_productivity']);
-
    $routes->add('view_productivity_team', 'FMWebService::view_productivity_team');
    $routes->add('view_productivity_team/(:num)', 'FMWebService::view_productivity_team/$1');
    $routes->add('view_productivity_team/(:num)/(:num)', 'FMWebService::view_productivity_team/$1/$2',   ['as' => 'view_productivity_team']);
 
+   $routes->add('view_productivity_max_rnum/(:any)', 'FMWebService::view_productivity_max_rnum/$1', ['as' => 'view_productivity_max_rnum']);
+
+   $routes->add('view_manday_team/(:segment)/(:segment)', 'FMWebService::view_manday_team/$1/$2', ['as' => 'view_manday_team']);
+
    $routes->add('view_safe_point', 'FMWebService::view_safe_point');
    $routes->add('view_safe_point/(:num)', 'FMWebService::view_safe_point/$1',                  ['as' => 'view_safe_point']);
+   $routes->add('add_safe_point', 'FMWebService::add_safe_point');
+   $routes->add('edit_safe_point', 'FMWebService::edit_safe_point');
+
    $routes->add('view_safe_point_team', 'FMWebService::view_safe_point_team');
    $routes->add('view_safe_point_team/(:num)', 'FMWebService::view_safe_point_team/$1');
    $routes->add('view_safe_point_team/(:num)/(:num)', 'FMWebService::view_safe_point_team/$1/$2',   ['as' => 'view_safe_point_team']);
-
    $routes->add('add_team_safe_point/(:num)/(:num)', 'FMWebService::add_team_safe_point/$1/$2', ['as' => 'add_team_safe_point']);
-
    $routes->add('edit_team_safe_point', 'FMWebService::edit_team_safe_point');
-
-   $routes->add('add_safe_point', 'FMWebService::add_safe_point');
-   $routes->add('edit_safe_point', 'FMWebService::edit_safe_point');
 
    $routes->add('set_place', 'FMWebService::set_place');
    $routes->add('change_place_name', 'FMWebService::change_place_name');
 
    $routes->add('set_user', 'FMWebService::set_user');
-
 
 });
 

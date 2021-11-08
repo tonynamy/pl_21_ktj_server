@@ -5,7 +5,7 @@
 <form method="POST" name="form">
 
     <div style="width:fit-content; margin:0 auto; padding:16px;">
-        <div class="uiframe" style="width:400px;">
+        <div class="uiframe" style="width:400px; padding:16px;">
 
             <i class="arrow left icon" onclick="location.href='/fm'" style="cursor: pointer;"></i>
 

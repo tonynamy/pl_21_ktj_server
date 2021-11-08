@@ -8,7 +8,7 @@
             <div class="uiframe" style="width:800px">
 
                 <div style="padding:16px;">
-                    <i class="arrow left icon" onclick="location.href='/fm/view_productivity/<?=$target_time->getTimestamp()?>'" style="cursor: pointer;"></i> <!-- 뒤로가기 -->
+                    <i class="arrow left icon" onclick="location.href='/fm/view_productivity/<?= $target_time->getTimestamp() ?>'" style="cursor: pointer;"></i> <!-- 뒤로가기 -->
                     <select id="team_select" class="ui dropdown" name="team">
                         <option value="">팀이름</option>
 
@@ -48,7 +48,7 @@
 
                                         <?php if($task['is_square_current'] == 1) continue ?>
 
-                                        <tr align="center">
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= $task['size_current'] ?></td>
                                             <td><?= $task['manday_max'] ?></td>
@@ -89,7 +89,7 @@
 
                                         <?php if($task['is_square_current'] == 0) continue ?>
 
-                                        <tr align="center">
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= $task['size_current'] ?></td>
                                             <td><?= $task['manday_max'] ?></td>
@@ -111,7 +111,7 @@
 
                         <div style="height:1px; background-color:#e8e9e9; margin-bottom:24px;"></div>
 
-                        <div style="margin-bottom:8px; font-size:large;"><?= $this_team['name'] ?> 그외작업 (맨데이)</div>
+                        <div style="margin-bottom:8px; font-size:large;"><?= $this_team['name'] ?> 맨데이</div>
 
                         <div style="width:100%; margin-bottom:16px">
                             <table class="ui sortable compact selectable celled table">
@@ -128,7 +128,7 @@
                                     
                                     <?php $sum = 0 ?>
                                     <?php foreach($tasks_manday as $task) : ?>
-                                        <tr align="center">
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_manday_team', CodeIgniter\I18n\Time::createFromDate(explode('-', $task['s_created_at'])[0], explode('-', $task['s_created_at'])[1], explode('-', $task['s_created_at'])[2])->getTimestamp(),$task['team_id'])?>"'>
                                             <td><?= $task['s_created_at'] ?></td>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= getTaskTypeText($task['type']) ?>작업</td>
@@ -157,6 +157,37 @@
         
     </form>
 
+    <div id="edit_manday_modal" class="ui mini modal">
+
+        <div style="padding-top:4px; padding-bottom:4px">
+
+            <div style="display:flex; align-items:center; padding:16px">
+                <div style="width:70px">작업명</div>
+                <div>SAM-001</div>
+            </div>
+            <div style="display:flex; align-items:center; padding:16px">
+                <div style="width:70px">내용</div>
+                <div>해체작업</div>
+            </div>
+            <div class="ui input" style="display:flex; align-items:center; padding:6px 16px 6px 16px">
+                <div style="width:70px">인원</div>
+                <input type="text" name="manday" placeholder="0을 포함한 자연수" value="">
+            </div>
+            <div class="actions" style="text-align:right; padding:16px">
+                <span class="cancel" style="color:#5599DD; cursor:pointer; margin-right:32px;">취소</span>
+                <span style="color:#5599DD; cursor:pointer;">수정</span>
+            </div>
+
+        </div>
+
+
+        <form id="edit_point_form" class="ui form" method="POST" action="/fm/edit_team_safe_point">
+            <input id="edit_task_id" type="hidden" name="task_id" />
+            <input id="edit_task_manday" type="hidden" name="task_manday" />
+        </form>
+
+    </div>
+
 <?= $this->endSection() ?>
 
 
@@ -170,6 +201,12 @@
         $('#team_select').on('change', function() {
 
             location.href = '/fm/view_productivity_team/' + this.value;
+
+        });
+        
+        $('tr.edit_manday').click(function() {
+
+            $('#edit_manday_modal').modal('show');
 
         });
 

@@ -33,7 +33,7 @@
                              <tr class="safe point select">
                                  <td style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap;"><?= $safe_point['name'] ?></td>
                                  <td align="right"><?= $safe_point['point'] ?><span>점</span></td>
-                                 <td align="right" data-id="<?= $safe_point['id'] ?>" class="data_edit"><span style="color:blue; cursor: pointer;">[수정]</span></td>
+                                 <td align="right" class="data_edit" data-id="<?= $safe_point['id'] ?>"><span style="color:blue; cursor: pointer;">[수정]</span></td>
                              </tr>
                          <?php endforeach ?>
 
@@ -63,7 +63,7 @@
 
                                  <tr class="safe team select" data-id="<?= $team['id'] ?>" align="center">
                                      <td><?= $team['name'] ?></td>
-                                     <td><?= 100 + ($team_safe_points[$team['id']] ?? 0 )?></td>
+                                     <td><?= 100 + ($team_safe_points[$team['id']] ?? 0) ?>점</td>
                                  </tr>
                              <?php endforeach ?>
 
@@ -78,7 +78,7 @@
      </div>
      
  </form>
-
+ 
  <div id="add_data" class="ui mini modal">
     <div class="content">
 
@@ -88,13 +88,13 @@
                 <input type="text" name="name" placeholder="기준이름">
                 <input type="text" name="point" placeholder="점수">
             </div>
-            <div id="add_data_button" style="cursor:pointer;">데이터 추가</div>
+            <div id="add_data_button">데이터 추가</div>
         </form>
 
     </div>
 </div>
- 
- <div id="edit_data" class="ui mini modal">
+
+<div id="edit_data" class="ui mini modal">
     <div class="content">
 
         <form id="edit_data_form" class="ui form" action="/fm/edit_safe_point" method="POST">
@@ -104,7 +104,7 @@
                 <input id="input_edit_safe_point" type="text" name="point" placeholder="점수">
             </div>
             <input id="input_edit_safe_point_id" type="hidden" name="id" value="">
-            <div id="edit_data_button" style="cursor:pointer;">데이터 수정</div>
+            <div id="edit_data_button">데이터 수정</div>
         </form>
 
     </div>
@@ -126,15 +126,10 @@
 
         });
 
+        
         $('#add_data_button').click(function() {
 
             $('#add_data_form').submit();
-
-        });
-
-        $('#edit_data_button').click(function() {
-
-            $('#edit_data_form').submit();
 
         });
 
@@ -144,12 +139,15 @@
             var prev_point = $(this).prev().clone().children().remove().end().text();
 
             $('#input_edit_safe_name').val(prev_name);
-
             $('#input_edit_safe_point').val(prev_point);
-
             $('#input_edit_safe_point_id').val($(this).data('id'));
-
+            
             $('#edit_data').modal('show');
+        });
+
+        $('#edit_data_button').click(function() {
+
+            $('#edit_data_form').submit();
 
         });
 
@@ -157,7 +155,7 @@
 
             var id = $(this).data('id');
 
-            location.href = '/fm/view_safe_point_team/' + id + '/<?=$target_time->getTimestamp()?>';
+            location.href = '/fm/view_safe_point_team/' + id + '/<?= $target_time->getTimestamp() ?>';
 
         });
         

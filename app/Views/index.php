@@ -5,7 +5,7 @@
 <form method="POST">
 
     <div style="width:fit-content; margin:0 auto; padding:16px;">
-        <div class="uiframe" style="width:400px;">
+        <div class="uiframe" style="width:400px; padding:16px;">
 
             <div style="height:150px; text-align:center; padding-top:16px;">
                 <img src="/static/fmenc_logo.jpg">

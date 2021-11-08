@@ -12,7 +12,7 @@ use App\Models\SafePointModel;
 use App\Models\TeamSafePointModel;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
-
+use PHPUnit\TextUI\XmlConfiguration\Logging\TeamCity;
 
 class FMWebService extends BaseController
 {
@@ -242,7 +242,7 @@ class FMWebService extends BaseController
 
         if(!$this->auth->is_logged_in()) {
 
-			return $this->login_fail();
+         return $this->login_fail();
 
         } else {
 
@@ -463,7 +463,7 @@ class FMWebService extends BaseController
         } else {
             return view('add_team_result.php');
         }
-        
+
     }
 
     /*-------------------------------------------도면등록-------------------------------------------*/
@@ -1144,7 +1144,7 @@ class FMWebService extends BaseController
         $TaskModel = new TaskModel();
         $tasks = $TaskModel->select('task.*, team.name as team_name')->where('facility_serial', $facility['o_serial'])->join('team', 'team.id = task.team_id')->findAll();
 
-        $data = [
+        $data = [   
             'facility' => $facility,
             'tasks' => $tasks,            
         ];
@@ -1156,18 +1156,100 @@ class FMWebService extends BaseController
 
         $id = $_POST['id'] ?? null;
         $data = $_POST['data'] ?? null;
-        $type = $_POST['type'] ?? null;
+        $data_type = $_POST['data_type'] ?? null;
 
         $FacilityModel = new FacilityModel();
         $FacilityModel->where('id', $id);
 
-        if($type == 1) {
+        if($data_type == 1) {
             $FacilityModel->set('type', getTypeInt($data));
+        }
+        if($data_type == 2) {
+            $FacilityModel->set('super_manager', $data);
         }
 
         $FacilityModel->update();
 
         return $this->alert('설비 정보가 변경되었습니다.');
+
+    }
+
+    public function view_etc_task() {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        }
+
+        $query = "(SELECT task.facility_serial as facility_serial, task.manday as manday, task.created_at as created_at from task) UNION (SELECT taskplan.facility_serial as facility_serial, NULL as manday, NULL as created_at from taskplan) order by manday is null ASC, manday ASC;";
+
+        $tasks = db_connect()->query($query)->getResult('array');
+
+        $etc_tasks = [];
+
+        foreach($tasks as $task) {
+
+            if(!array_key_exists($task['facility_serial'], $etc_tasks)) {
+
+                $etc_tasks[$task['facility_serial']] = [
+                    'total_manday' => 0,
+                    'total_task' => 0,
+                    'started_at' => null,
+                    'finished_at' => null,
+                ];
+
+
+            }
+
+            if($task['manday'] == null) { // taskplan
+
+                $etc_tasks[$task['facility_serial']]['finished_at'] = null;
+                
+
+            } else { // task
+
+                $etc_tasks[$task['facility_serial']]['total_manday'] += $task['manday'];
+                $etc_tasks[$task['facility_serial']]['total_task']++;
+
+                $created_at = Time::createFromFormat('Y-m-d H:i:s', $task['created_at']);
+                
+                if($etc_tasks[$task['facility_serial']]['started_at'] == null || $etc_tasks[$task['facility_serial']]['started_at']->isBefore($created_at))
+                    $etc_tasks[$task['facility_serial']]['started_at'] = $created_at;
+                
+                if($etc_tasks[$task['facility_serial']]['finished_at'] == null || $etc_tasks[$task['facility_serial']]['finished_at']->isAfter($created_at)) 
+                    $etc_tasks[$task['facility_serial']]['finished_at'] = $created_at;
+
+            }
+        }
+
+        $data = [
+            'etc_tasks' => $etc_tasks,
+        ];
+
+        return view('view_etc_task', $data);
+
+    }
+
+    public function view_etc_task_info() {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        } else {
+
+            $TeamModel = new TeamModel();
+
+            $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+
+            $data = [
+                'teams' => $teams,
+            ];
+
+            return view('view_etc_task_info.php', $data);
+            
+        }
 
     }
 
@@ -1250,6 +1332,7 @@ class FMWebService extends BaseController
             $users = $UserModel->orderBy('level', 'DESC')->orderBy('username', 'ASC')->where('place_id', $this->auth->login_place_id())->findAll();
     
             $data = [
+                'level' => $this->auth->level(),
                 'users' => $users,  
             ];
 
@@ -1264,8 +1347,8 @@ class FMWebService extends BaseController
 
         $TaskModel = new TaskModel();
 
-        $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, t.manday_max as manday_max, task.facility_serial, task.type, task.place_id')
-                            ->join('facility as f', '(f.o_serial = task.facility_serial AND f.place_id = task.place_id AND f.finished_at >= "'.$start_time->toDateTimeString().'" AND f.finished_at < "'.$end_time->toDateTimeString().'")', 'inner', false)
+        $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, task.type, task.place_id')
+                            ->join('facility as f', '(f.o_serial = task.facility_serial AND f.place_id = task.place_id AND f.finished_at >= "' . $start_time->toDateTimeString() . '" AND f.finished_at < "' . $end_time->toDateTimeString() . '")', 'inner', false)
                             ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', 't.facility_serial = task.facility_serial', 'inner', false)
                             ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', 'tt.facility_serial = task.facility_serial', 'inner', false)
                             ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
@@ -1281,14 +1364,35 @@ class FMWebService extends BaseController
 
         $TaskModel = new TaskModel();
 
+        /*선생님과 함께 수정한것
+        $query = "SELECT tt.id as id, tt.type as type, tt.facility_serial as facility_serial, tt.manday as manday_max, t.s_created_at as s_created_at"
+                ." FROM (select MAX(manday) as manday, date_format(created_at, '%Y-%m-%d') as s_created_at from task where team_id = '".$team_id."' group by s_created_at) td"
+                ." INNER JOIN (select max(id) as id, manday, date_format(created_at, '%Y-%m-%d') as s_created_at from task group by manday, s_created_at) t ON t.manday = td.manday and t.s_created_at = td.s_created_at"
+                ." JOIN task as tt ON t.id = tt.id"
+                ." WHERE tt.type != 1 and t.s_created_at >= '".$start_time->toDateString()."' and t.s_created_at < '".$end_time->toDateString()."'"
+                ." and tt.deleted_at IS NULL"
+                ." order by t.s_created_at asc";
+
+        $tasks_manday = db_connect()->query($query)->getResult('array');
+        */
+        /*기존것
         $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
                                     ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
-                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->groupEnd()
+                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->orWhere('task.type', 4)->groupEnd()
                                     ->where('task.team_id', $team_id)
                                     ->where('task.created_at >= ', $start_time)
                                     ->where('task.created_at < ', $end_time)
                                     ->groupBy('s_created_at')
                                     ->orderBy('s_created_at', 'ASC')
+                                    ->findAll();
+        */
+
+        $tasks_manday = $TaskModel->select("task.*, tm.manday as manday_max, tm.s_created_at as s_created_at")
+                                    ->from("(SELECT MAX(manday) as manday, date_format(created_at, '%Y-%m-%d') as s_created_at from task where team_id = '".$team_id."' AND type != 1 group by s_created_at) tm")
+                                    ->join("(SELECT MAX(id) as id, manday, date_format(created_at, '%Y-%m-%d') as s_created_at from task where team_id = '".$team_id."' AND type != 1 group by manday, s_created_at) ti", "(task.id = ti.id AND ti.manday = tm.manday AND ti.s_created_at = tm.s_created_at)", 'inner', false)
+                                    ->where('created_at >= ', $start_time)
+                                    ->where('created_at < ', $end_time)
+                                    ->orderBy('created_at', 'ASC')
                                     ->findAll();
 
         return $tasks_manday;
@@ -1392,6 +1496,8 @@ class FMWebService extends BaseController
 			return $this->login_fail();
 
         } else {
+
+
             
             if($_target_time == null || !is_numeric($_target_time)) {
                 $target_time = Time::now();
@@ -1422,30 +1528,6 @@ class FMWebService extends BaseController
             $tasks = $this->get_productivity_task($team_id, $start_time, $end_time);
             $tasks_manday = $this->get_productivity_manday($team_id, $start_time, $end_time);
 
-            /*
-            $TaskModel = new TaskModel();
-
-            $tasks = $TaskModel->select('ttt.size_current as size_current, ttt.is_square_current as is_square_current, task.facility_serial, t.manday_max as manday_max, type')
-                                ->join('(SELECT MAX(manday) as manday_max, facility_serial from task where type = 1 group by facility_serial) t', 't.facility_serial = task.facility_serial', 'inner', false)
-                                ->join('(SELECT MAX(created_at) as max_created_at, facility_serial from task where type = 1 group by facility_serial) as tt', 'tt.facility_serial = task.facility_serial', 'inner', false)
-                                ->join('(SELECT size as size_current, is_square as is_square_current, created_at, facility_serial from task where type = 1) as ttt', "(ttt.created_at = tt.max_created_at AND ttt.facility_serial = tt.facility_serial)", 'inner', false)
-                                ->where('task.type', 1)
-                                ->where('task.team_id', $team_id)
-                                ->where('task.created_at >= ', $start_time)
-                                ->where('task.created_at < ', $end_time)
-                                ->groupBy('task.facility_serial, ttt.size_current, ttt.is_square_current')
-                                ->findAll();
-
-            $tasks_manday = $TaskModel->select("ANY_VALUE(task.id) as id, ANY_VALUE(t.type) as type, ANY_VALUE(t.facility_serial) as facility_serial, MAX(task.manday) as manday_max, date_format(task.created_at, '%Y-%m-%d') as s_created_at")
-                                    ->join("( SELECT id, type, facility_serial from task ) t", '(t.id = task.id)', 'inner', false)
-                                    ->groupStart()->where('task.type', 2)->orWhere('task.type', 3)->groupEnd()
-                                    ->where('task.team_id', $team_id)
-                                    ->where('task.created_at >= ', $start_time)
-                                    ->where('task.created_at < ', $end_time)
-                                    ->groupBy('s_created_at')
-                                    ->orderBy('s_created_at', 'ASC')
-                                    ->findAll();
-            */
 
             $data = [      
                 'teams' => $teams,
@@ -1460,6 +1542,57 @@ class FMWebService extends BaseController
             return view('view_productivity_team.php', $data);
             
         }
+    }
+
+    public function view_productivity_max_rnum($facility_serial) {
+
+        $FacilityModel = new FacilityModel();
+
+        $place_id = $this->auth->login_place_id();
+
+        $facility = $FacilityModel->select('id, r_num, facility.o_serial, place_id')
+                            ->join('(SELECT MAX(r_num) as r_num_max, o_serial from facility group by o_serial) f', '(f.r_num_max = r_num AND facility.o_serial = f.o_serial)', 'inner', false)
+                            ->where('facility.o_serial', $facility_serial)
+                            ->where('place_id', $place_id)
+                            ->first();
+                            
+        if($facility == null) return;
+       
+        return $this->view_facility_info($facility['id']);
+
+    }
+
+    public function view_manday_team($target_time, $team_id) {
+
+        if(!$this->auth->is_logged_in()) {
+
+			return $this->login_fail();
+
+        }
+
+
+        $TaskModel = new TaskModel();
+        $TeamModel = new TeamModel();
+
+        $target_time = Time::createFromTimestamp($target_time);
+
+        $start_time = $target_time->setHour(5)->setMinute(0)->setSecond(0);
+        $end_time = $target_time->addDays(1)->setHour(5)->setMinute(0)->setSecond(0);
+
+        $tasks = $TaskModel->where('created_at >=', $start_time)->where("created_at <=", $end_time)->where('team_id', $team_id)->where('type !=', 1)->findAll();
+        $team = $TeamModel->where('id', $team_id)->first();
+        
+        $data = [
+
+            'tasks' => $tasks,
+            'team' => $team,
+            'target_time' => $target_time,
+
+        ];
+        
+        
+        return view('view_manday_team.php', $data);
+
     }
 
     /*-----------------------------------------안전점수조회-----------------------------------------*/
@@ -1513,11 +1646,16 @@ class FMWebService extends BaseController
             return $this->alert('값이 올바르지 않습니다.');
         }
 
+        $SafePointModel = new SafePointModel();
         $TeamSafePointModel = new TeamSafePointModel();
+
+        $this_safe_point = $SafePointModel->where('id', $point_id)->first();
 
         $TeamSafePointModel->insert([
             'team_id' => $team_id,
             'safe_point_id' => $point_id,
+            'name' => $this_safe_point['name'],
+            'point' => $this_safe_point['point'],
         ]);
 
         return $this->alert('안전점수가 부여되었습니다.');
@@ -1534,17 +1672,22 @@ class FMWebService extends BaseController
             return $this->alert('값이 올바르지 않습니다.');
         }
 
+        $SafePointModel = new SafePointModel();
         $TeamSafePointModel = new TeamSafePointModel();
+
+        $this_safe_point = $SafePointModel->where('id', $point_id)->first();
 
         if($point_id < 0) {
             $TeamSafePointModel->where('id', $team_safe_point_id)->delete();
         } else {
             $TeamSafePointModel->update($team_safe_point_id, [
                 'safe_point_id' => $point_id,
+                'name' => $this_safe_point['name'],
+                'point' => $this_safe_point['point'],
             ]);
         }
 
-        return $this->alert('안전점수가 부여되었습니다.');
+        return $this->alert('안전점수가 수정되었습니다.');
 
 
     }
@@ -1591,9 +1734,16 @@ class FMWebService extends BaseController
 
             $TeamSafePointModel = new TeamSafePointModel();
 
+            /*이전의 id로 검색하는 방식
             $all_team_safe_points = $TeamSafePointModel
                             ->select('sp.name as name, sp.point as point, team_id, sp.created_at as created_at')
                             ->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
+                            ->whereIn('team_id', $team_ids)
+                            ->where('team_safe_point.created_at >= ', $start_time)
+                            ->where('team_safe_point.created_at < ', $end_time)
+                            ->findAll();
+            */
+            $all_team_safe_points = $TeamSafePointModel
                             ->whereIn('team_id', $team_ids)
                             ->where('team_safe_point.created_at >= ', $start_time)
                             ->where('team_safe_point.created_at < ', $end_time)
@@ -1662,8 +1812,8 @@ class FMWebService extends BaseController
             $this_team = $TeamModel->where('id', $team_id)->first();
 
             $TeamSafePointModel = new TeamSafePointModel();
-            //$SafePointModel = new SafePointModel();
 
+            /*이전의 id로 검색하는 방식
             $team_safe_points = $TeamSafePointModel
                             ->select('team_safe_point.id as id,  sp.name as name, sp.point as point, team_safe_point.created_at as created_at')
                             ->join('safe_point as sp', 'sp.id = team_safe_point.safe_point_id')
@@ -1671,7 +1821,12 @@ class FMWebService extends BaseController
                             ->where('team_safe_point.created_at >= ', $start_time)
                             ->where('team_safe_point.created_at < ', $end_time)
                             ->findAll();
-
+            */
+            $team_safe_points = $TeamSafePointModel
+                            ->where('team_id', $team_id)
+                            ->where('team_safe_point.created_at >= ', $start_time)
+                            ->where('team_safe_point.created_at < ', $end_time)
+                            ->findAll();
 
             $SafePointModel = new SafePointModel();
 

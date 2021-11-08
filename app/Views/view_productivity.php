@@ -29,7 +29,7 @@
                                     <th width="25%" style="font-weight:normal;">팀</th>
                                     <th width="25%" style="font-weight:normal;">1인당 수평비계 생산성</th>
                                     <th width="25%" style="font-weight:normal;">1인당 달대비계 생산성</th>
-                                    <th width="25%" style="font-weight:normal;">맨데이</th>
+                                    <th width="25%" style="font-weight:normal;">맨데이 합계</th>
                                 </tr>
                             </thead>
 
@@ -38,10 +38,10 @@
                                 <?php foreach($teams as $team) : ?>
 
                                     <tr class="productivity select" data-id="<?= $team['id'] ?>" align="center">
-                                        <td> <?= $team['name'] ?> </td>
-                                        <td> <?=$totals_cube[$team['id']]?>㎥</td>
-                                        <td> <?=$totals_square[$team['id']]?>㎡</td>
-                                        <td> <?=$totals_manday[$team['id']]?>공수</td>
+                                        <td><?= $team['name'] ?></td>
+                                        <td><?= $totals_cube[$team['id']] ?>㎥</td>
+                                        <td><?= $totals_square[$team['id']] ?>㎡</td>
+                                        <td><?= $totals_manday[$team['id']] ?>공수</td>
                                     </tr>
                                 <?php endforeach ?>
 
@@ -70,7 +70,7 @@
 
             var id = $(this).data('id');
 
-            location.href = '/fm/view_productivity_team/' + id + '/<?=$target_time->getTimestamp()?>';
+            location.href = '/fm/view_productivity_team/' + id + '/<?= $target_time->getTimestamp() ?>';
 
         });
 

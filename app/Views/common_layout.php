@@ -23,10 +23,6 @@
 
         <style>
             .uiframe {
-                padding-top: 16px;
-                padding-bottom: 16px;
-                padding-left: 16px;
-                padding-right: 16px;
                 border-radius: 8px;
                 box-shadow: 0px 3px 8px #BBBBBB;
             }
