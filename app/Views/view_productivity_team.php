@@ -50,7 +50,7 @@
 
                                         <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
-                                            <td><?= $task['size_current'] ?></td>
+                                            <td><?= $task['size_current'] ?> ㎥</td>
                                             <td><?= $task['manday_max'] ?></td>
                                             <td><?= $task['size_current'] / $task['manday_max'] ?>㎥</td>
                                         </tr>
@@ -91,9 +91,9 @@
 
                                         <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
-                                            <td><?= $task['size_current'] ?></td>
+                                            <td><?= $task['size_current'] ?> ㎡</td>
                                             <td><?= $task['manday_max'] ?></td>
-                                            <td><?= $task['size_current'] / $task['manday_max'] ?>㎡</td>
+                                            <td><?= round($task['size_current'] / $task['manday_max'] , 1) ?>㎡</td>
                                         </tr>
                                         <?php $sum += $task['size_current'] / $task['manday_max'] ?>
                                     <?php endforeach ?>
@@ -105,7 +105,7 @@
                         
                         <div align="right" style="margin-bottom:16px;">
                             <span style="margin-right:8px">합계</span>
-                            <span style="margin-right:8px; font-size:large"><?= $sum ?>㎡</span>
+                            <span style="margin-right:8px; font-size:large"><?= round($sum, 1) ?>㎡</span>
                         </div>
 
 
@@ -128,7 +128,7 @@
                                     
                                     <?php $sum = 0 ?>
                                     <?php foreach($tasks_manday as $task) : ?>
-                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_manday_team', CodeIgniter\I18n\Time::createFromDate(explode('-', $task['s_created_at'])[0], explode('-', $task['s_created_at'])[1], explode('-', $task['s_created_at'])[2])->getTimestamp(),$task['team_id'])?>"'>
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_manday_team', $task['team_id'], CodeIgniter\I18n\Time::createFromDate(explode('-', $task['s_created_at'])[0], explode('-', $task['s_created_at'])[1], explode('-', $task['s_created_at'])[2])->getTimestamp())?>"'>
                                             <td><?= $task['s_created_at'] ?></td>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= getTaskTypeText($task['type']) ?>작업</td>

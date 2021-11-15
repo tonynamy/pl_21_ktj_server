@@ -39,8 +39,8 @@
 
                                     <tr class="productivity select" data-id="<?= $team['id'] ?>" align="center">
                                         <td><?= $team['name'] ?></td>
-                                        <td><?= $totals_cube[$team['id']] ?>㎥</td>
-                                        <td><?= $totals_square[$team['id']] ?>㎡</td>
+                                        <td><?= round($totals_cube[$team['id']], 1) ?>㎥</td>
+                                        <td><?= round($totals_square[$team['id']], 1) ?>㎡</td>
                                         <td><?= $totals_manday[$team['id']] ?>공수</td>
                                     </tr>
                                 <?php endforeach ?>

@@ -7,9 +7,9 @@
         <div style="width:fit-content; margin:0 auto; padding:16px;">
             <div class="uiframe" style="width:800px; padding:16px;">
 
-                <div style="display:flex; align-items:center; margin-top:8px">
-                    <i class="arrow left icon" onclick="location.href='/fm/view_productivity/'" style="cursor: pointer;"></i> <!-- 뒤로가기 -->
-                    <span style="font-size:x-large; font-weight:normal;"><?=$team['name']?>&nbsp;<?=$target_time->toDateString()?>&nbsp;맨데이작업</span>
+                <div style="display:flex; align-items:center; margin-top:5px">
+                    <i class="arrow left icon" onclick="location.href='/fm/view_productivity_team/<?= $this_team['id'] ?>/<?= $target_time->getTimestamp() ?>'" style="cursor: pointer;"></i> <!-- 뒤로가기 -->
+                    <span style="font-size:x-large; font-weight:normal;"><?= $this_team['name'] ?> <?= $target_time->toDateString() ?> 맨데이작업</span>
                 </div>
 
                 <div style="width:100%; margin-top:16px;">
@@ -32,17 +32,16 @@
 
                             <?php foreach($tasks as $task) : ?>
 
-                            <?php $task_time = CodeIgniter\I18n\Time::createFromFormat('Y-m-d H:i:s', $task['created_at']); ?>
-
-                                <tr class="edit_manday" align="center">
-                                    <td><?=explode(' ', $task_time->toDateTimeString())[1]?></td>
-                                    <td><?=$task['facility_serial']?></td>
-                                    <td><?=getTaskTypeText($task['type'])?>작업</td>
-                                    <td><?=$task['manday']?>명</td>
-                                </tr>
+                                <?php $task_time = CodeIgniter\I18n\Time::createFromFormat('Y-m-d H:i:s', $task['created_at']); ?>
+                                    <tr class="edit_manday" align="center">
+                                        <td><?=explode(' ', $task_time->toDateTimeString())[1]?></td>
+                                        <td><?=$task['facility_serial']?></td>
+                                        <td><?=getTaskTypeText($task['type'])?>작업</td>
+                                        <td><?=$task['manday']?>명</td>
+                                    </tr>
 
                             <?php endforeach ?>
-
+                            
                         </tbody>
                     </table>
             
@@ -71,8 +70,8 @@
                 <div>기타작업</div>
             </div>
             <div class="ui input" style="display:flex; align-items:center; margin-top:12px">
-                <div style="width:70px">인원</div>
-                <input type="text" name="manday" placeholder="0을 포함한 자연수" value="7">
+                <div style="width:70px">작업인원</div>
+                <input type="number" min="0" name="manday" placeholder="0을 포함한 자연수" value="7">
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:24px; margin-bottom:4px">
                 <span style="color:#5599DD; cursor:pointer;">삭제(복구불가)</span>

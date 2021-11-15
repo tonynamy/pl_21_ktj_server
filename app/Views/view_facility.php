@@ -7,9 +7,12 @@
     <div style="width:fit-content; margin:0 auto; padding:16px;">
         <div class="uiframe" style="width:2600px;">
             
-            <div style="padding:16px">
+            <div style="display:flex; align-items:center; padding:16px;">
                 <i class="hamburger icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
-                <label>작업 조회</label>
+                <select id="mode_select" class="ui dropdown">
+                    <option value="1" selected> 도면있는 작업 조회 </option>
+                    <option value="2"> 도면없는 작업 조회 </option>
+                </select>
             </div>
 
             <div style="height:1px; background-color:#e8e9e9;"></div>
@@ -202,7 +205,7 @@
 
                             ?>
 
-                            <tr class="facility select" data-id="<?= $facility['id'] ?>" align="center">
+                            <tr class="facility select" data-id="<?= $is_guest ? -1 : $facility['id'] ?>" align="center">
                                 <td style="height: 52px; <?= $serial_fontsize ?>"><?= $facility['serial'] ?></td>
                                 <td><?= $type_string ?></td>
                                 <td style=<?= $super_manager_fontsize ?>><?= $facility['super_manager'] ?></td>
@@ -253,6 +256,13 @@
 
     $(document).ready(function() {
         
+        $('#mode_select').val(1);
+        $('#mode_select').on('change', function() {
+            if(this.value == 2) {
+            location.href = '/fm/view_etc_task';
+            }
+        });
+
         $('#state_select').on('change', function() {
 
             arr = this.value.split(",");
@@ -265,6 +275,8 @@
         $('tr.facility.select').click(function() {
 
             var id = $(this).data('id');
+
+            if(id < 0) return;
 
             location.href = '/fm/view_facility_info/' + id;
 

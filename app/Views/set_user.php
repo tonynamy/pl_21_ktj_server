@@ -2,95 +2,102 @@
 
 <?= $this->section('content') ?>
 
-<form method="POST">
+    <form method="POST">
 
-    <div style="width:fit-content; margin:0 auto; padding:16px;">
-        <div class="uiframe" style="width:400px;">
+        <div style="width:fit-content; margin:0 auto; padding:16px;">
+            <div class="uiframe" style="width:400px;">
+            
+                <div style="padding:16px;">
+                    <i class="bars icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
+                    <label>직원등급 관리</label>
+                </div>
+
+                <div style="height:1px; background-color:#e8e9e9;"></div>
+
+                <table width="100%" style="padding:8px;">
+                
+                    <?php foreach($users as $user) : ?>
+                        <tr class="edit_user_info" data-mylevel="<?= $level ?>" data-id="<?= $user['id'] ?>" data-level="<?= $user['level'] ?>" data-username="<?= $user['username'] ?>" data-birthday="<?= $user['birthday'] ?>" style="color:<?= $user['level'] == 0 ? "BLUE" : "BLACK" ?>; cursor:pointer;">
+                            <td style="padding:8px;">
+                                <?= $user['username'] . " ( " . $user['birthday'] . " )" ?>
+                            </td>
+                            <td data-id="<?= $user['level'] ?>" style="padding:8px; text-align:right;">
+                                <?= getUserLevel($user['level']) ?>
+                            </td>
+                        </tr>
+                    <?php endforeach ?>
+
+                </table>
+
+            </div>
+        </div>
         
-            <div style="padding:16px;">
-                <i class="bars icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
-                <label>직원등급 관리</label>
+    </form>
+
+    <!-- 직원정보수정 modal -->
+    <div id="edit_user_info_modal" class="ui mini modal" style="padding:16px;">
+
+        <form id="edit_user_info_form" class="ui form" method="POST" action="/fm/edit_user_info">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px">
+                <label>아이디</label>
+                <span id="edit_user_info_name" style="width:270px;"></span>
             </div>
 
-            <div style="height:1px; background-color:#e8e9e9;"></div>
-
-            <table width="100%" style="padding:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px">
+                <label>패스워드</label>
+                <input id="edit_user_info_birthday" type="text" name="new_birthday" placeholder="생년월일 혹은 8자리 이상의 숫자" style="width:270px;">
+            </div>
             
-                <?php foreach($users as $user) : ?>
-                    <tr style="color:<?= $user['level'] == 0 ? "BLUE" : "BLACK" ?>">
-                        <td class="edit_user_info" style="padding:8px;">
-                            <?= $user['username'] . " ( " . $user['birthday'] . " )" ?>
-                        </td>
-                        <td class="edit_user_level" data-id="<?= $user['level'] ?>" style="padding:8px; text-align:right;">
-                            <?= getUserLevel($user['level']) ?>
-                        </td>
-                    </tr>
-                <?php endforeach ?>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px">
+                <label>직원등급</label>
+                <div style="width:270px;">
+                    <select id="edit_user_info_level" class="ui fluid dropdown" name="new_level">
+                        <option value="3">최고관리자</option>
+                        <option value="2">관리자</option>
+                        <option value="1">팀장</option>
+                        <option value="0">대기자</option>
+                    </select>
+                </div>
+            </div>
 
-            </table>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; margin-bottom:4px">
+                <span id="delete_user_submit" style="color:#5599DD; cursor:pointer;">사용자 삭제</span>
+                <div class="actions">
+                    <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+                    <span id="edit_user_info_submit" style="color:#5599DD; margin-left:32px; cursor:pointer;">확인</span>
+                </div>
+            </div>
 
-        </div>
-    </div>
-    
-</form>
+            <input type="hidden" name="user_id">
 
-<div id="edit_user_info_modal" class="ui mini modal" style="padding:16px;">
+        </form>
 
-    <div class="ui input" style="display:flex; align-items:center; margin-bottom:8px;">
-        <label style="width:70px">아이디</label>
-        <input type="text" name="name" placeholder="이름" value="">
-    </div>
-
-    <div class="ui input" style="display:flex; align-items:center; margin-bottom:24px;">
-        <label style="width:70px">패스워드</label>
-        <input type="text" name="birthday" placeholder="생년월일 (예 740101)" value="">
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="color:#5599DD; cursor:pointer;">사용자 삭제</span>
-        <div class="actions">
-            <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
-            <span style="color:#5599DD; margin-left:32px; cursor:pointer;">확인</span>
-        </div>
-    </div>
+    <!-- 직원등급수정 modal 
+    <div id="edit_user_level_modal" class="ui mini modal">
 
-    <form id="edit_user_info_form" class="ui form" method="POST" action="">
-        <input id="edit_user_info_name" type="hidden" name="user_name" />
-        <input id="edit_user_info_birthday" type="hidden" name="user_birthday" />
-    </form>
+        <div style="padding-top:4px; padding-bottom:4px">
 
-</div>
-
-<div id="edit_user_level_modal" class="ui mini modal">
-
-    <div style="padding-top:4px; padding-bottom:4px">
-
-        <div style="font-size:large; padding:16px;">김두한 직원등급</div>
-        <?php if($user['level'] != 3 && $level == 4) : ?>
+            <div style="font-size:large; padding:16px;">김두한 직원등급</div>
             <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">최고관리자</div>
-        <?php endif ?>
-        <?php if($user['level'] != 2) : ?>
             <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">관리자</div>
-        <?php endif ?>
-        <?php if($user['level'] != 1) : ?>
             <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">팀장</div>
-        <?php endif ?>
-        <?php if($user['level'] != 0) : ?>
             <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">대기자</div>
-        <?php endif ?>
+            <div class="actions" style="float:right; padding:16px">
+                <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+            </div>
 
-        <div class="actions" style="float:right; padding:16px">
-            <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
         </div>
+        
+        <form id="edit_user_level_form" class="ui form" method="POST" action="">
+            <input id="edit_user_level" type="hidden" name="user_level" />
+        </form>
 
     </div>
-    
-    <form id="edit_user_level_form" class="ui form" method="POST" action="">
-        <input id="edit_user_level" type="hidden" name="user_level" />
-    </form>
+    -->
 
-</div>
-    
 <?= $this->endSection() ?>
 
 
@@ -100,22 +107,31 @@
 
     $(document).ready(function() {
         
-        $('.item.user_level_change').click(function() {
+        $('.edit_user_info').click(function() {
 
-            
-        });
+            $('#edit_user_info_form [name=user_id]').val($(this).data('id'));   //유저 id
+            $('#edit_user_info_name').text($(this).data('username'));            //유저 이름
+            $('#edit_user_info_birthday').val($(this).data('birthday'));        //유저 생일
 
-        $('td.edit_user_info').click(function() {
+            //admin로그인이 아닐시 최고관리자 등급은 못 건듬
+            if($(this).data('mylevel') != 4 && $(this).data('level') >= 3) {
+                $('#edit_user_info_level').dropdown().addClass('disabled');
+            } else {
+                $('#edit_user_info_level').dropdown().removeClass('disabled');
+            }
+            $('#edit_user_info_level').dropdown('set selected', $(this).data('level'));
 
             $('#edit_user_info_modal').modal('show');
 
         });
+        $('#edit_user_info_submit').click(function() {
 
-        $('td.edit_user_level').click(function() {
+            $('#edit_user_info_form').submit();
+        });
+        $('#delete_user_submit').click(function() {
 
-            $('#edit_user_level').val($(this).data('id'));
-            $('#edit_user_level_modal').modal('show');
-
+            $('#edit_user_info_form [name=new_birthday]').val("-1");
+            $('#edit_user_info_form').submit();
         });
 
     });

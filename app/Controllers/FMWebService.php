@@ -12,6 +12,8 @@ use App\Models\SafePointModel;
 use App\Models\TeamSafePointModel;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\I18n\Time;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PHPUnit\TextUI\XmlConfiguration\Logging\TeamCity;
 
 class FMWebService extends BaseController
@@ -92,7 +94,7 @@ class FMWebService extends BaseController
 
     public function logout() {
         
-        if($this->auth->is_logged_in()) {
+        if($this->auth->is_logged_in() || $this->auth->is_logged_in(true)) {
 
 			return redirect()->to('/fm')->deleteCookie("jwt_token");
 
@@ -114,10 +116,10 @@ class FMWebService extends BaseController
     }
 
     public function generate_user() {
-
+        
         $place_id = $_POST['place'] ?? null;
 		$username = $_POST['name'] ?? null;
-		$birthday = $_POST['birthday_calender'] ?? null;
+		$birthday = $_POST['birthday_calendar'] ?? null;
 
         if(preg_match('/[0-9]{4}-[0-9]{2}-[0-9]{2}/', $birthday, $birthday_preg)) {
             $birthday = $birthday_preg[0];
@@ -311,7 +313,7 @@ class FMWebService extends BaseController
 
                     $matches = [];
 
-                    $birthday = preg_match('/([0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[1,2][0-9]|3[0,1]))/', $registration_number, $matches);
+                    $birthday = preg_match('/^([0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[1,2][0-9]|3[0,1]))/', $registration_number, $matches);
 
                     if($birthday) {
                         $birthday = $matches[0];
@@ -954,7 +956,7 @@ class FMWebService extends BaseController
 
     public function view_facility($state = null) {
 
-        if(!$this->auth->is_logged_in()) {
+        if(!($this->auth->is_logged_in() || $this->auth->is_logged_in(true))) {
 
 			return $this->login_fail();
 
@@ -974,6 +976,15 @@ class FMWebService extends BaseController
 
             $FacilityModel->select('facility.*')->where('facility.place_id', $this->auth->login_place_id());
             $FacilityModel2->select('facility.*')->where('facility.place_id', $this->auth->login_place_id());
+
+            $is_guest = $this->auth->is_logged_in(true);
+            if( $is_guest ) {
+
+                $FacilityModel->like("super_manager", $this->auth->supermanager());
+                $FacilityModel2->like("super_manager", $this->auth->supermanager());
+
+            }
+
 
             if(in_array("o", $state_array) || in_array("r", $state_array)) {
                 $FacilityModel->groupStart();
@@ -1127,6 +1138,8 @@ class FMWebService extends BaseController
                 'subcontractors' => $subcontractors,
 
                 'search_serial' => $search_serial,
+
+                'is_guest' => $is_guest,
                 
             ];
 
@@ -1137,14 +1150,20 @@ class FMWebService extends BaseController
 
     public function view_facility_info($id) {
 
+        if(!$this->auth->is_logged_in()) {
+
+            return $this->login_fail();
+
+        }
+
         $FacilityModel = new FacilityModel();
 
         $facility = $FacilityModel->where('id', $id)->first();
 
         $TaskModel = new TaskModel();
-        $tasks = $TaskModel->select('task.*, team.name as team_name')->where('facility_serial', $facility['o_serial'])->join('team', 'team.id = task.team_id')->findAll();
+        $tasks = $TaskModel->select('task.*, team.name as team_name')->join('team', 'team.id = task.team_id')->where('task.facility_serial', $facility['o_serial'])->findAll();
 
-        $data = [   
+        $data = [
             'facility' => $facility,
             'tasks' => $tasks,            
         ];
@@ -1178,11 +1197,13 @@ class FMWebService extends BaseController
 
         if(!$this->auth->is_logged_in()) {
 
-			return $this->login_fail();
+         return $this->login_fail();
 
         }
 
-        $query = "(SELECT task.facility_serial as facility_serial, task.manday as manday, task.created_at as created_at from task) UNION (SELECT taskplan.facility_serial as facility_serial, NULL as manday, NULL as created_at from taskplan) order by manday is null ASC, manday ASC;";
+        $query = "(SELECT task.place_id as place_id, task.type as type, task.facility_serial as task_name, t.id as team_id, t.name as team_name, task.manday as manday, task.created_at as created_at from task join team as t on t.id = task.team_id where task.place_id = '".$this->auth->login_place_id()."' and task.type = '4')"
+        ." UNION (SELECT taskplan.place_id as place_id, taskplan.type as type, taskplan.facility_serial as task_name, tt.id as team_id, tt.name as team_name, NULL as manday, NULL as created_at from taskplan join team as tt on tt.id = taskplan.team_id where taskplan.place_id = '".$this->auth->login_place_id()."' and taskplan.type = '4')";
+        //." order by created_at is null ASC, created_at ASC;";
 
         $tasks = db_connect()->query($query)->getResult('array');
 
@@ -1190,48 +1211,100 @@ class FMWebService extends BaseController
 
         foreach($tasks as $task) {
 
-            if(!array_key_exists($task['facility_serial'], $etc_tasks)) {
+            if(!array_key_exists($task['task_name'], $etc_tasks)) {
 
-                $etc_tasks[$task['facility_serial']] = [
+                $etc_tasks[$task['task_name']] = [
+
+                    $task['team_id'].'__'.$task['team_name'] => [
+
+                        'total_manday' => 0,
+                        'total_task' => 0,
+                        'started_at' => null,
+                        'finished_at' => null,
+
+                    ],
+                ];
+
+            } else if(!array_key_exists($task['team_id'].'__'.$task['team_name'], $etc_tasks[$task['task_name']])) {
+                
+                $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']] = [
+
                     'total_manday' => 0,
                     'total_task' => 0,
                     'started_at' => null,
                     'finished_at' => null,
+
                 ];
-
-
             }
 
             if($task['manday'] == null) { // taskplan
 
-                $etc_tasks[$task['facility_serial']]['finished_at'] = null;
+                $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['finished_at'] = null;
                 
 
             } else { // task
 
-                $etc_tasks[$task['facility_serial']]['total_manday'] += $task['manday'];
-                $etc_tasks[$task['facility_serial']]['total_task']++;
+                $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['total_manday'] += $task['manday'];
+                $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['total_task']++;
 
                 $created_at = Time::createFromFormat('Y-m-d H:i:s', $task['created_at']);
                 
-                if($etc_tasks[$task['facility_serial']]['started_at'] == null || $etc_tasks[$task['facility_serial']]['started_at']->isBefore($created_at))
-                    $etc_tasks[$task['facility_serial']]['started_at'] = $created_at;
+                if($etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['started_at'] == null || $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['started_at']->isBefore($created_at))
+                    $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['started_at'] = $created_at;
                 
-                if($etc_tasks[$task['facility_serial']]['finished_at'] == null || $etc_tasks[$task['facility_serial']]['finished_at']->isAfter($created_at)) 
-                    $etc_tasks[$task['facility_serial']]['finished_at'] = $created_at;
+                if($etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['finished_at'] == null || $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['finished_at']->isAfter($created_at)) 
+                    $etc_tasks[$task['task_name']][$task['team_id'].'__'.$task['team_name']]['finished_at'] = $created_at;
 
             }
         }
 
+        $TeamModel = new TeamModel();
+        $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
+        
         $data = [
+
             'etc_tasks' => $etc_tasks,
+            'teams' => $teams,
+
         ];
 
         return view('view_etc_task', $data);
 
     }
 
-    public function view_etc_task_info() {
+    public function add_etc_taskplan() {
+
+        $task_name = $_POST['task_name'] ?? null;
+        $team_id = $_POST['team_id'] ?? null;
+
+        if($task_name == null || $team_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TaskPlanModel = new TaskPlanModel();
+
+        $this_taskplan = $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('type', 4)
+        ->where('team_id', $team_id)
+        ->first();
+
+        if($this_taskplan != null){
+            return $this->alert('같은 작업계획이 있습니다.');
+        }
+
+        $TaskPlanModel->insert([
+            'place_id' => $this->auth->login_place_id(),
+            'facility_serial' => $task_name,
+            'type' => 4,
+            'team_id' => $team_id,
+        ]);
+
+        return $this->alert('작업계획이 추가되었습니다.');
+    }
+
+
+    public function view_etc_task_info($team_id, $task_name) {
 
         if(!$this->auth->is_logged_in()) {
 
@@ -1240,17 +1313,208 @@ class FMWebService extends BaseController
         } else {
 
             $TeamModel = new TeamModel();
+            $this_team = $TeamModel->where('id', $team_id)->first();
+
+            $TaskPlanModel = new TaskPlanModel();
+            $this_taskplan = $TaskPlanModel->where('place_id', $this->auth->login_place_id())->where('facility_serial', $task_name)->where('type', 4)->where('team_id', $team_id)->first();
+
+            $TaskModel = new TaskModel();
+            $etc_tasks = $TaskModel->select('task.*, team.name as team_name')
+                                ->join('team', 'team.id = task.team_id')
+                                ->where('task.type =', 4)
+                                ->where('task.place_id', $this->auth->login_place_id())
+                                ->where('task.facility_serial', $task_name)
+                                ->where('task.team_id', $team_id)
+                                ->orderBy('created_at', 'ASC')
+                                ->findAll();
+
+            $progress = 0;
+
+            if(count($etc_tasks) > 0) {
+                if($this_taskplan != null) {
+                    $progress = 1;
+                } else {
+                    $progress = 2;
+                }
+            }
 
             $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
 
             $data = [
+
+                'task_name' => $task_name,
+                'this_team' => $this_team,
+                'etc_tasks' => $etc_tasks,
+                'progress' => $progress,
                 'teams' => $teams,
+
             ];
 
             return view('view_etc_task_info.php', $data);
-            
+        }
+    }
+    
+    public function change_etc_task_team() {
+
+        $task_name = $_POST['task_name'] ?? null;
+        $old_team_id = $_POST['old_team_id'] ?? null;
+        $new_team_id = $_POST['new_team_id'] ?? null;
+
+        if($task_name == null || $old_team_id == null || $new_team_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
         }
 
+        $TaskPlanModel = new TaskPlanModel();
+        $TaskModel = new TaskModel();
+
+        //같은 작업 계획이 있다면 작업계획 삭제, 없으면 팀을 변경
+        $new_taskplan = $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('type', 4)
+        ->where('team_id', $new_team_id)
+        ->first();
+        
+        if($new_taskplan == null) {
+            $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+            ->where('facility_serial', $task_name)
+            ->where('type', 4)
+            ->where('team_id', $old_team_id)
+            ->set('team_id', $new_team_id)
+            ->update();
+        } else {
+            $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+            ->where('facility_serial', $task_name)
+            ->where('type', 4)
+            ->where('team_id', $old_team_id)
+            ->delete(null, true);
+        }
+
+        //해당 작업들이 없다면 아무 작업 안함, 있으면 작업의 팀을 변경
+        $TaskModel->where('type', 4)
+        ->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('team_id', $old_team_id)
+        ->set('team_id', $new_team_id)
+        ->update();
+
+        return $this->view_etc_task_info($new_team_id, $task_name);
+    }
+
+    public function add_etc_task() {
+
+        $task_name = $_POST['task_name'] ?? null;
+        $team_id = $_POST['team_id'] ?? null;
+        $manday = $_POST['manday'] ?? null;
+        $task_calendar = $_POST['task_calendar'] ?? null;
+
+        if($task_name == null || $team_id == null || $manday == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        /*
+        var_dump($task_name);
+        echo('<br>');
+        var_dump($team_id);
+        echo('<br>');
+        var_dump($manday);
+        echo('<br>');
+        var_dump($task_calendar);
+        echo('<br>');
+        exit;
+        */
+
+        if($task_calendar == "0"){
+            $task_calendar = Time::now()->setHour(7)->setMinute(0)->setSecond(0);
+        }
+
+        $TaskModel = new TaskModel();
+
+        $TaskModel->insert([
+            'type' => 4,
+            'place_id' => $this->auth->login_place_id(),
+            'facility_serial' => $task_name,
+            'team_id' => $team_id,
+            'manday' => $manday,
+            'created_at' => $task_calendar,
+        ]);
+
+        return $this->alert('작업기록이 추가되었습니다.');
+    }
+
+    public function finish_etc_taskplan() {
+
+        $task_name = $_POST['task_name'] ?? null;
+        $team_id = $_POST['team_id'] ?? null;
+
+        if($task_name == null || $team_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TaskPlanModel = new TaskPlanModel();
+
+        $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('type', 4)
+        ->where('team_id', $team_id)
+        ->delete(null, true);
+
+        return $this->alert('작업이 완료되었습니다.');
+    }
+
+    public function delete_etc_taskplan() {
+
+        $task_name = $_POST['task_name'] ?? null;
+        $team_id = $_POST['team_id'] ?? null;
+
+        if($task_name == null || $team_id == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TaskPlanModel = new TaskPlanModel();
+        $TaskModel = new TaskModel();
+
+        $TaskPlanModel->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('type', 4)
+        ->where('team_id', $team_id)
+        ->delete(null, true);
+
+        $TaskModel->where('type', 4)
+        ->where('place_id', $this->auth->login_place_id())
+        ->where('facility_serial', $task_name)
+        ->where('team_id', $team_id)
+        ->delete(null, true);
+
+        return $this->view_etc_task();
+    }
+
+    public function edit_etc_task() {
+
+        $task_id = $_POST['task_id'] ?? null;
+        $manday = $_POST['manday'] ?? null;
+
+        if($task_id == null || $manday == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $TaskModel = new TaskModel();
+
+        //삭제상황
+        if($manday < 0) {
+
+            $TaskModel->delete($task_id, true);
+    
+            return $this->alert('작업기록이 삭제되었습니다.');
+
+        //수정상황
+        } else {
+
+            $TaskModel->update($task_id, [
+                'manday' => $manday
+            ]);
+    
+            return $this->alert('작업기록이 수정되었습니다.');
+        }
     }
 
     /*-------------------------------------------현장관리-------------------------------------------*/
@@ -1283,6 +1547,7 @@ class FMWebService extends BaseController
 
         $PlaceModel = new PlaceModel();
 
+        //현장추가상황
         if($id == null) {
             
             if($new_name == null || $new_name == "") {
@@ -1299,7 +1564,7 @@ class FMWebService extends BaseController
                 return redirect()->back()->with('alert', ' 현장 추가에 실패했습니다.');
             }
 
-            
+        //현장명 수정 상황
         } else {
             
             if($new_name == null || $new_name == "") {
@@ -1329,9 +1594,10 @@ class FMWebService extends BaseController
 
             $UserModel = new UserModel();
 
-            $users = $UserModel->orderBy('level', 'DESC')->orderBy('username', 'ASC')->where('place_id', $this->auth->login_place_id())->findAll();
+            $users = $UserModel->where('place_id', $this->auth->login_place_id())->orderBy('level', 'DESC')->orderBy('username', 'ASC')->findAll();
     
             $data = [
+            
                 'level' => $this->auth->level(),
                 'users' => $users,  
             ];
@@ -1340,7 +1606,65 @@ class FMWebService extends BaseController
 
         }
     }
+
+    public function edit_user_info() {
+
+        $id = $_POST['user_id'] ?? null;
+        $_new_birthday = $_POST['new_birthday'] ?? null;
+        $new_level = $_POST['new_level'] ?? null;
+
+        if($id == null || $_new_birthday == null || $new_level == null) {
+            return $this->alert('값이 올바르지 않습니다.');
+        }
+
+        $UserModel = new UserModel();
+
+        //사용자 삭제 상황
+        if($_new_birthday == -1) {
+
+            return $this->alert('사용자가 삭제되었습니다.');
+
+        //사용자 정보 수정 상황
+        } else {
+
+            $preg_match_birthday = false;
+
+            if(is_numeric($_new_birthday) && strlen($_new_birthday) == 6){
     
+                $matches = [];
+    
+                $preg_match_birthday = preg_match('/^([0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[1,2][0-9]|3[0,1]))$/', $_new_birthday, $matches);
+        
+            }
+
+            //패스워드가 생년월일 양식일시
+            if($preg_match_birthday) {
+    
+                $new_birthday = $matches[0];
+
+            //패스워드가 8자리이상 숫자일시
+            }else if(is_numeric($_new_birthday) && strlen($_new_birthday) >= 8) {
+    
+                $new_birthday = $_new_birthday;
+            
+            //그외
+            } else {
+    
+                return $this->alert('패스워드는 생년월일 혹은 8자리 이상의 숫자로 지정해주세요.');
+    
+            }
+
+            var_dump($id);
+            echo('<br>');
+            var_dump($new_birthday);
+            echo('<br>');
+            var_dump($new_level);
+            exit;
+
+            return $this->alert('사용자정보가 수정되었습니다.');
+        }
+    }
+
     /*-----------------------------------------생산성조회-----------------------------------------*/
 
     public function get_productivity_task($team_id, $start_time, $end_time) {
@@ -1485,7 +1809,6 @@ class FMWebService extends BaseController
             ];
 
             return view('view_productivity.php', $data);
-            
         }
     }
 
@@ -1497,8 +1820,6 @@ class FMWebService extends BaseController
 
         } else {
 
-
-            
             if($_target_time == null || !is_numeric($_target_time)) {
                 $target_time = Time::now();
             } else {
@@ -1551,93 +1872,95 @@ class FMWebService extends BaseController
         $place_id = $this->auth->login_place_id();
 
         $facility = $FacilityModel->select('id, r_num, facility.o_serial, place_id')
-                            ->join('(SELECT MAX(r_num) as r_num_max, o_serial from facility group by o_serial) f', '(f.r_num_max = r_num AND facility.o_serial = f.o_serial)', 'inner', false)
-                            ->where('facility.o_serial', $facility_serial)
-                            ->where('place_id', $place_id)
-                            ->first();
-                            
+                                ->join('(SELECT MAX(r_num) as r_num_max, o_serial from facility group by o_serial) f', '(f.r_num_max = r_num AND facility.o_serial = f.o_serial)', 'inner', false)
+                                ->where('facility.o_serial', $facility_serial)
+                                ->where('place_id', $place_id)
+                                ->first();
+        
         if($facility == null) return;
-       
-        return $this->view_facility_info($facility['id']);
 
+        return $this->view_facility_info($facility['id']);
     }
 
-    public function view_manday_team($target_time, $team_id) {
+
+    public function view_manday_team($team_id, $target_time) {
 
         if(!$this->auth->is_logged_in()) {
 
 			return $this->login_fail();
 
+        } else {
+
+            $TaskModel = new TaskModel();
+            $TeamModel = new TeamModel();
+    
+            $target_time = Time::createFromTimestamp($target_time);
+    
+            $start_time = $target_time->setHour(0)->setMinute(0)->setSecond(0);
+            $end_time = $start_time->addDays(1)->setHour(0)->setMinute(0)->setSecond(0);
+    
+            $tasks = $TaskModel->where('created_at >=', $start_time)->where('created_at <', $end_time)->where('team_id', $team_id)->where('type !=' , 1)->findAll();
+            $this_team = $TeamModel->where('id', $team_id)->first();
+    
+            $data = [
+                'tasks' => $tasks,
+                'this_team' => $this_team,
+                'target_time' => $target_time,
+            ];
+    
+            return view('view_manday_team.php', $data);
         }
-
-
-        $TaskModel = new TaskModel();
-        $TeamModel = new TeamModel();
-
-        $target_time = Time::createFromTimestamp($target_time);
-
-        $start_time = $target_time->setHour(5)->setMinute(0)->setSecond(0);
-        $end_time = $target_time->addDays(1)->setHour(5)->setMinute(0)->setSecond(0);
-
-        $tasks = $TaskModel->where('created_at >=', $start_time)->where("created_at <=", $end_time)->where('team_id', $team_id)->where('type !=', 1)->findAll();
-        $team = $TeamModel->where('id', $team_id)->first();
-        
-        $data = [
-
-            'tasks' => $tasks,
-            'team' => $team,
-            'target_time' => $target_time,
-
-        ];
-        
-        
-        return view('view_manday_team.php', $data);
-
     }
 
     /*-----------------------------------------안전점수조회-----------------------------------------*/
 
     public function add_safe_point() {
 
-        $name = $_POST['name'] ?? null;
-        $point = $_POST['point'] ?? null;
+        $sp_name = $_POST['sp_name'] ?? null;
+        $sp_point = $_POST['sp_point'] ?? null;
 
-        if($name == null || $point == null) {
+        if($sp_name == null || $sp_point == null) {
             return $this->alert('값이 올바르지 않습니다.');
         }
 
         $SafePointModel = new SafePointModel();
 
         $SafePointModel->insert([
-            'name' => $name,
-            'point' => $point,
+            'name' => $sp_name,
+            'point' => $sp_point,
         ]);
 
         return $this->alert('안전점수가 추가되었습니다.');
-
-
     }
 
     public function edit_safe_point() {
 
-        $id = $_POST['id'] ?? null;
-        $name = $_POST['name'] ?? null;
-        $point = $_POST['point'] ?? null;
+        $sp_id = $_POST['sp_id'] ?? null;
+        $sp_name = $_POST['sp_name'] ?? null;
+        $sp_point = $_POST['sp_point'] ?? null;
+        $is_delete = $_POST['is_delete'] == 1? true : false;
 
-        if($id == null || $name == null || $point == null) {
+        if($sp_id == null || $sp_name == null || $sp_point == null) {
             return $this->alert('값이 올바르지 않습니다.');
         }
 
         $SafePointModel = new SafePointModel();
 
-        $SafePointModel->update($id, [
-            'name' => $name,
-            'point' => $point,
-        ]);
+        if($is_delete) {
 
-        return $this->alert('안전점수가 수정되었습니다.');
+            $SafePointModel->delete($sp_id, true);
 
+            return $this->alert('안전점수가 삭제되었습니다.');
 
+        } else {
+
+            $SafePointModel->update($sp_id, [
+                'name' => $sp_name,
+                'point' => $sp_point,
+            ]);
+
+            return $this->alert('안전점수가 수정되었습니다.');
+        }
     }
 
     public function add_team_safe_point($team_id, $point_id) {
@@ -1653,7 +1976,6 @@ class FMWebService extends BaseController
 
         $TeamSafePointModel->insert([
             'team_id' => $team_id,
-            'safe_point_id' => $point_id,
             'name' => $this_safe_point['name'],
             'point' => $this_safe_point['point'],
         ]);
@@ -1666,30 +1988,41 @@ class FMWebService extends BaseController
     public function edit_team_safe_point() {
 
         $team_safe_point_id = $_POST['team_safe_point_id'] ?? null;
-        $point_id = $_POST['point_id'] ?? null;
+        $new_safe_point_id = $_POST['new_safe_point_id'] ?? null;
 
-        if($team_safe_point_id == null || $point_id == null) {
+        if($team_safe_point_id == null || $new_safe_point_id == null) {
             return $this->alert('값이 올바르지 않습니다.');
         }
 
         $SafePointModel = new SafePointModel();
         $TeamSafePointModel = new TeamSafePointModel();
 
-        $this_safe_point = $SafePointModel->where('id', $point_id)->first();
+        $new_safe_point = $SafePointModel->where('id', $new_safe_point_id)->first();
 
-        if($point_id < 0) {
+        //삭제인 경우
+        if($new_safe_point_id < 0) {
+            
             $TeamSafePointModel->where('id', $team_safe_point_id)->delete();
-        } else {
+            return $this->alert('안전점수가 삭제되었습니다.');
+
+        //무효인 경우
+        } else if($new_safe_point_id == 0) {
+            
             $TeamSafePointModel->update($team_safe_point_id, [
-                'safe_point_id' => $point_id,
-                'name' => $this_safe_point['name'],
-                'point' => $this_safe_point['point'],
+                'point' => 0,
             ]);
+            return $this->alert('안전점수가 수정되었습니다.');
+
+        //수정인 경우
+        } else {
+
+            $TeamSafePointModel->update($team_safe_point_id, [
+                'name' => $new_safe_point['name'],
+                'point' => $new_safe_point['point'],
+            ]);
+            return $this->alert('안전점수가 수정되었습니다.');
+
         }
-
-        return $this->alert('안전점수가 수정되었습니다.');
-
-
     }
 
     public function view_safe_point($_target_time = 0) {
@@ -1699,7 +2032,6 @@ class FMWebService extends BaseController
          return $this->login_fail();
 
         } else {
-            
             if($_target_time == null || !is_numeric($_target_time)) {
                 $target_time = Time::now();
             } else {
@@ -1806,6 +2138,9 @@ class FMWebService extends BaseController
 
             }
 
+            $is_before = $end_time->isBefore(Time::now());
+            $is_after = $end_time->addDays(1)->isAfter(Time::now());
+
 
             $TeamModel = new TeamModel();
             $teams = $TeamModel->where('place_id', $this->auth->login_place_id())->orderBy('name', 'ASC')->findAll();
@@ -1843,11 +2178,98 @@ class FMWebService extends BaseController
                 'safe_points' => $safe_points,
 
                 'target_time' => $target_time,
+
+                'is_before' => $is_before,
+
+                'is_after' => $is_after,
             ];
 
             return view('view_safe_point_team.php', $data);
             
         }
+    }
+
+
+    public function download_report() {
+
+        if($this->request->getMethod() == 'post') {
+
+            $place_id = $this->auth->login_place_id();
+            $period = $_POST['period'] ?? null;
+
+            $st_time = Time::now()->setDay(1)->setHour(0)->setMinute(0)->setSecond(0);
+
+            $TeamModel = new TeamModel();
+            $TeamSafePointModel = new TeamSafePointModel();
+            $teams = $TeamModel->where('place_id', $place_id)->orderBy('name', 'ASC')->findAll();
+
+            $excel_array = [];
+
+            for($i=0;$i<$period;$i++) {
+
+                array_push($excel_array, [$st_time->getYear().'-'.$st_time->getMonth(), '1인당 수평비계 생산성(루베)', '1인당 달대비계 생산성(헤베)', '멘데이합계(공수)', '안전점수']);
+
+                $team_array = [];
+                
+                foreach($teams as $team) {
+
+                    $ed_time = $st_time->addMonths(1);
+
+                    $productivity = $this->get_productivity_task($team['id'], $st_time, $ed_time);
+                    $manday = $this->get_productivity_manday($team['id'], $st_time, $ed_time);
+                    
+                    $safe_points = $TeamSafePointModel
+                            ->where('team_id', $team['id'])
+                            ->where('team_safe_point.created_at >= ', $st_time)
+                            ->where('team_safe_point.created_at < ', $ed_time)
+                            ->findAll();
+
+                    $safe_point = 100;
+                    foreach($safe_points as $sp) $safe_point += $sp['point'];
+
+                    $r = 0;$h = 0;$m = 0;
+
+                    foreach($productivity as $p) {
+
+                        if($p['is_square_current'] == 0) {
+                            $r = $p['size_current'];
+                        } else {
+                            $h = $p['size_current'];
+                        }
+                    }
+
+                    foreach($manday as $mm) {
+
+                        if($mm['manday_max'] > $m) $m = $mm['manday_max'];
+
+                    }
+
+                    $team_array = [
+                        $team['name'],
+                        $r, $h, $m, $safe_point
+                    ];
+                    array_push($excel_array, $team_array);
+                }
+                array_push($excel_array, []);
+                $st_time = $st_time->addMonths(-1);
+
+            }
+
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->fromArray($excel_array, NULL, 'A1', true);
+
+            $file_path = tempnam(sys_get_temp_dir(), 'xl_');
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($file_path);
+
+            return $this->response->download($file_path, null)->setFileName('1.xlsx');
+            
+        }
+
+        return view('download_report.php');
+
     }
 
 }

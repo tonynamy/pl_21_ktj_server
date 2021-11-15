@@ -42,7 +42,7 @@
                 <label style="width:130px">생년월일</label>
                 <div class="ui calendar" id="standard_calendar" data-type="date" data-date="<?= $ui_birthday ?>" style="margin-top:8px">
                 </div>
-                <input type="hidden" name="birthday_calender" value="<?= $input_birthday ?>">
+                <input type="hidden" name="birthday_calendar" value="<?= $input_birthday ?>">
 
             </div>
 
@@ -69,14 +69,14 @@
                 monthsShort: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
             },
             onChange: function(date) {
-                
+
                 year = date.getFullYear().toString();
                 month = ('0' + (date.getMonth() + 1)).slice(-2);
                 day = ('0' + date.getDate()).slice(-2);
 
                 date_str = year + "-" + month + "-" + day;
 
-                document.form.birthday_calender.value = date_str;
+                document.form.birthday_calendar.value = date_str;
             }
         });
 

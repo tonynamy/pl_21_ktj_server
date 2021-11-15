@@ -139,6 +139,17 @@ class Home extends ResourceController
 		
 		$places = $PlaceModel->findAll();
 
+		foreach($places as $idx => $place) {
+
+			$created_at = Time::createFromFormat("Y-m-d H:i:s", $place['created_at']);
+			$expiration_date = $created_at->addDays(7);
+
+			$places[$idx]['isDeletable'] = Time::now()->isAfter($expiration_date);
+
+		}
+
+
+
 		return $this->respond($places);
 	}
 

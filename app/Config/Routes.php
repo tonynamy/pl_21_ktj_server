@@ -90,6 +90,8 @@ $routes->group('fm', function($routes)
    $routes->add('add_team_safe_point/(:num)/(:num)', 'FMWebService::add_team_safe_point/$1/$2', ['as' => 'add_team_safe_point']);
    $routes->add('edit_team_safe_point', 'FMWebService::edit_team_safe_point');
 
+   $routes->add('download_report', 'FMWebService::download_report');
+
    $routes->add('set_place', 'FMWebService::set_place');
    $routes->add('change_place_name', 'FMWebService::change_place_name');
 

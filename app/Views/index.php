@@ -22,7 +22,7 @@
 
                         <?php foreach($places as $place) : ?>
 
-                            <option value="<?=$place['id']?>"    <?= $place['id'] == $old_place ? "SELECTED" : "" ?>    > <?= $place['name'] ?> </option>
+                            <option value="<?=$place['id']?>" <?= $place['id'] == $old_place ? "SELECTED" : "" ?>    > <?= $place['name'] ?> </option>
 
                         <?php endforeach ?>
 
