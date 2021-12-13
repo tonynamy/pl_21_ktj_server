@@ -17,13 +17,18 @@
                         </select>
                     </div>
 
-                    <button id="taskplan_add" class="filletbutton" type="button" style="margin-right:16px">작업계획추가</button>
+                    <button class="filletbutton" type="button" style="margin-right:16px" onclick="location.href='/fm/download_etc_task'">엑셀로 저장</button>
 
                 </div>
 
                 <div style="height:1px; background-color:#e8e9e9;"></div>
 
                 <div style="width:100%; padding:16px;">
+
+                    <div style="text-align:right; margin-bottom:16px">
+                        <button id="taskplan_add" class="filletbutton" type="button">작업계획추가</button>
+                    </div>
+
                     <table class="ui sortable compact selectable celled table" style="table-layout:fixed;">
                         <thead>
                             <tr align="center">
@@ -47,7 +52,7 @@
                                         
                                         <td><?=$task_name?></td>
                                         <td><?=explode('__', $team_info)[1]?></td>
-                                        <td><?=$etc_task['total_manday']?>명/<?=$etc_task['total_task']?>회</td>
+                                        <td><?=$etc_task['total_manday']?>명(<?=$etc_task['total_task']?>회)</td>
                                         <td><?=$etc_task['started_at'] != null ? $etc_task['started_at']->toDateString() : ""?></td>
                                         <td><?=$etc_task['finished_at'] != null ? $etc_task['finished_at']->toDateString() : ""?></td>
                                     </tr>
@@ -66,6 +71,8 @@
         </div>
         
     </form>
+
+    <!-- 작업계획추가 modal -->
     <div id="taskplan_add_modal" class="ui mini modal">
 
         <form id="taskplan_add_form" class="ui form" method="POST" action="/fm/add_etc_taskplan">

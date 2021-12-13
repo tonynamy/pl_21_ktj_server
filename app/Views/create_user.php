@@ -2,7 +2,7 @@
 
 <?= $this->section('content') ?>
 
-<form method="POST" name="form">
+<form method="POST" action="/fm/generate_user">
 
     <div style="width:fit-content; margin:0 auto; padding:16px;">
         <div class="uiframe" style="width:400px; padding:16px;">
@@ -40,14 +40,14 @@
                         
             <div style="margin-top:16px; margin-bottom:12px;">
                 <label style="width:130px">생년월일</label>
-                <div class="ui calendar" id="standard_calendar" data-type="date" data-date="<?= $ui_birthday ?>" style="margin-top:8px">
+                <div id="standard_calendar" class="ui calendar" data-type="date" data-date="<?= $ui_birthday ?>" style="margin-top:8px">
                 </div>
-                <input type="hidden" name="birthday_calendar" value="<?= $input_birthday ?>">
-
+                <input id="birthday_calendar" type="hidden" name="birthday_calendar" value="<?= $input_birthday ?>">
             </div>
+            <div id="birthday_display"></div>
 
             <div align="right">
-                <button class="bluebutton" type="submit" formaction="generate_user" style="width:80px">생성</button>
+                <button class="bluebutton" type="submit" style="width:80px">생성</button>
             </div>
 
         </div>
@@ -76,7 +76,8 @@
 
                 date_str = year + "-" + month + "-" + day;
 
-                document.form.birthday_calendar.value = date_str;
+                $('#birthday_display').text("선택한 생년월일: " + date_str);
+                $('#birthday_calendar').val(date_str);
             }
         });
 

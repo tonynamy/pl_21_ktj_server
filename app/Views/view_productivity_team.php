@@ -23,9 +23,17 @@
                     <?php if($this_team['id'] != 0) : ?>
                     
                         <div style="display:flex; justify-content:space-between; margin-top:32px; margin-bottom:48px">
-                            <a href="<?= route_to('view_productivity_team', $this_team['id'], $target_time->subMonths(1)->getTimestamp()) ?>">◀이전달보기</a>
-                            <span style="font-size:x-large;"><?= $target_time->getMonth() ?>월</span>
-                            <a href="<?= route_to('view_productivity_team', $this_team['id'], $target_time->addMonths(1)->getTimestamp()) ?>">다음달보기▶</a>
+                            <div style="flex:1">
+                                <a href="<?= route_to('view_productivity_team', $this_team['id'], $target_time->subMonths(1)->getTimestamp()) ?>">◀이전달보기</a>
+                            </div>
+                            <div style="flex:1; text-align:center;">
+                                <span style="font-size:x-large;"><?= $target_time->getMonth() ?>월</span>
+                            </div>
+                            <div style="flex:1; text-align:right;">
+                                <?php if(!$is_after) : ?>
+                                    <a href="<?= route_to('view_productivity_team', $this_team['id'], $target_time->addMonths(1)->getTimestamp()) ?>">다음달보기▶</a>
+                                <?php endif ?>
+                            </div>
                         </div>
 
                         <div style="margin-bottom:8px; font-size:large;"><?= $this_team['name'] ?> 수평비계</div>
@@ -48,11 +56,11 @@
 
                                         <?php if($task['is_square_current'] == 1) continue ?>
 
-                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_facility_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= $task['size_current'] ?> ㎥</td>
                                             <td><?= $task['manday_max'] ?></td>
-                                            <td><?= $task['size_current'] / $task['manday_max'] ?>㎥</td>
+                                            <td><?= round($task['size_current'] / $task['manday_max'], 1) ?>㎥</td>
                                         </tr>
                                         <?php $sum += $task['size_current'] / $task['manday_max'] ?>
                                     <?php endforeach ?>
@@ -64,7 +72,7 @@
 
                         <div align="right" style="margin-bottom:16px;">
                             <span style="margin-right:8px">합계</span>
-                            <span style="margin-right:8px; font-size:large"><?= $sum ?>㎥</span>
+                            <span style="margin-right:8px; font-size:large"><?= round($sum, 1) ?>㎥</span>
                         </div>
 
                         <div style="height:1px; background-color:#e8e9e9; margin-bottom:16px;"></div>
@@ -89,7 +97,7 @@
 
                                         <?php if($task['is_square_current'] == 0) continue ?>
 
-                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_productivity_max_rnum', urlencode($task['facility_serial']))?>"'>
+                                        <tr align="center" style="cursor:pointer;" onclick='javascript:location.href="<?=route_to('view_facility_max_rnum', urlencode($task['facility_serial']))?>"'>
                                             <td><?= $task['facility_serial'] ?></td>
                                             <td><?= $task['size_current'] ?> ㎡</td>
                                             <td><?= $task['manday_max'] ?></td>
@@ -200,7 +208,7 @@
         
         $('#team_select').on('change', function() {
 
-            location.href = '/fm/view_productivity_team/' + this.value;
+            location.href = '/fm/view_productivity_team/' + this.value + '/<?= $target_time->getTimestamp() ?>';
 
         });
         

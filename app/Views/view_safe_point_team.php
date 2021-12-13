@@ -23,19 +23,24 @@
                     <?php if($this_team['id'] != 0) : ?>
                     
                         <div style="display:flex; justify-content:space-between; margin-top:32px; margin-bottom:48px">
-                            <a href="<?= route_to('view_safe_point_team', $this_team['id'], $target_time->subMonths(1)->getTimestamp()) ?>">◀이전달보기</a>
-                            <span style="font-size:x-large;"><?= $target_time->getMonth() ?>월</span>
-                            <?php if(!$is_after) : ?>
-                                <a href="<?= route_to('view_safe_point_team', $this_team['id'], $target_time->addMonths(1)->getTimestamp()) ?>">다음달보기▶</a>
-                            <?php endif ?>
+                            <div style="flex:1;">
+                                <?php if(!$is_first_month) : ?>
+                                    <a href="<?= route_to('view_safe_point_team', $this_team['id'], $target_time->subMonths(1)->getTimestamp()) ?>">◀이전달보기</a>
+                                <?php endif ?>
+                            </div>
+                            <div style="flex:1; text-align:center;">
+                                <span style="font-size:x-large;"><?= $target_time->getMonth() ?>월</span>
+                            </div>
+                            <div style="flex:1; text-align:right;">
+                                <?php if(!$is_after) : ?>
+                                    <a href="<?= route_to('view_safe_point_team', $this_team['id'], $target_time->addMonths(1)->getTimestamp()) ?>">다음달보기▶</a>
+                                <?php endif ?>
+                            </div>
                         </div>
 
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                             <span style="font-size:large;"><?= $this_team['name'] ?> 안전점수</span>
-
-                            <?php if(!$is_before) : ?>
-                                <button class="filletbutton add_point" type="button" style="margin-right:8px">점수 주기</button>
-                            <?php endif ?>
+                            <button id="add_safe_point" class="filletbutton" type="button">점수 주기</button>
                         </div>
 
                         <div style="width:100%; margin-bottom:16px">
@@ -53,7 +58,7 @@
                                     <?php $sum = 0 ?>
                                     <?php foreach($team_safe_points as $team_safe_point) : ?>
 
-                                        <tr align="center" class="edit_point" data-tspid="<?=$team_safe_point['id']?>">
+                                        <tr align="center" class="edit_safe_point" data-tspid="<?=$team_safe_point['id']?>">
                                             <td><?= $team_safe_point['created_at'] ?></td>
                                             <td><?= $team_safe_point['name'] ?></td>
                                             <td><?= $team_safe_point['point'] == 0? "무효" : $team_safe_point['point'] ?></td>
@@ -81,47 +86,74 @@
     </form>
 
     <!-- 점수주기 modal -->
-    <div id="add_safe_point_modal" class="ui mini modal">
+    <div id="add_safe_point_modal" class="ui small modal">
 
-        <div style="padding-top:4px; padding-bottom:4px">
+        <form id="add_safe_point_form"  method="POST" action="/fm/add_team_safe_point">
+                
+            <div style="display:flex; padding-top:4px; padding-bottom:4px">
+                <div style="flex:1; padding:16px;">
 
-            <?php foreach($safe_points as $safe_point) : ?>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:16px">
+                        <label>점수일시</label>
+                        <div id="calendar_display" style="width:290px"></div>
+                    </div>
 
-                <div onclick="javascript:location.href='<?=route_to('add_team_safe_point', $this_team['id'], $safe_point['id'])?>'" style="display:flex; justify-content:space-between; padding:16px; cursor:pointer;"><span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span></div>
+                    <div id="inline_calendar" class="ui calendar"></div>
+                    <input type="hidden" name="team_sp_date">
+                    
+                </div>
 
-            <?php endforeach ?>
+                <div style="width:1px; background-color:#e8e9e9;"></div>
 
-            <div class="actions" style="text-align:right; padding:16px;">
-                <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+                <div style="flex:1;">
+
+                    <?php foreach($safe_points as $safe_point) : ?>
+
+                        <div class="add_safe_point_item" data-spid="<?=$safe_point['id']?>"  style="display:flex; justify-content:space-between; padding:16px; cursor:pointer;">
+                            <span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span>
+                        </div>
+
+                    <?php endforeach ?>
+
+                    <div class="actions" style="text-align:right; padding:16px;">
+                        <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+                    </div>
+
+                </div>
             </div>
-            
-        </div>
+                
+            <input type="hidden" name="team_id" value="<?= $this_team['id'] ?>">
+            <input type="hidden" name="sp_id">
+        </form>
 
     </div>
 
     <!-- 점수수정 modal -->
     <div id="edit_safe_point_modal" class="ui mini modal">
 
-        <div style="padding-top:4px; padding-bottom:4px">
+        <form id="edit_safe_point_form" method="POST" action="/fm/edit_team_safe_point">
+            <div style="padding-top:4px; padding-bottom:4px">
 
-            <?php foreach($safe_points as $safe_point) : ?>
+                <?php foreach($safe_points as $safe_point) : ?>
 
-                <div class="item safe_point" data-spid="<?=$safe_point['id']?>" style="display:flex; justify-content:space-between; padding:16px;  cursor:pointer;"><span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span></div>
+                    <div class="edit_safe_point_item" data-spid="<?=$safe_point['id']?>" style="display:flex; justify-content:space-between; padding:16px;  cursor:pointer;">
+                        <span><?=$safe_point['name']?></span><span><?=$safe_point['point']?></span>
+                    </div>
 
-            <?php endforeach ?>
+                <?php endforeach ?>
 
-            <div class="item safe_point" data-spid="0" style="padding:16px; cursor:pointer;">점수 무효</div>
+                <div class="edit_safe_point_item" data-spid="0" style="padding:16px; cursor:pointer;">점수 무효</div>
 
-            <div class="actions" style="display:flex; justify-content:space-between; padding:16px;">
-                <span class="item safe_point"data-spid="-1"  style="color:#5599DD; cursor:pointer;">삭제</span>
-                <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+                <div class="actions" style="display:flex; justify-content:space-between; padding:16px;">
+
+                    <span class="edit_safe_point_item" data-spid="-1"  style="color:#5599DD; cursor:pointer;">점수 삭제</span>
+                    <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
+
+                </div>
             </div>
 
-        </div>
-
-        <form id="edit_safe_point_form" class="ui form" method="POST" action="/fm/edit_team_safe_point">
-            <input id="team_safe_point_id" type="hidden" name="team_safe_point_id" />
-            <input id="new_safe_point_id" type="hidden" name="new_safe_point_id" />
+            <input type="hidden" name="team_sp_id">
+            <input type="hidden" name="sp_id">
         </form>
 
     </div>
@@ -133,33 +165,68 @@
 
 <script type="text/javascript">
 
-        
+    $('#inline_calendar').calendar({
+        type: 'datetime',
+        text: {
+            months: ['1월,', '2월,', '3월,', '4월,', '5월,', '6월,', '7월,', '8월,', '9월,', '10월,', '11월,', '12월,'],
+            monthsShort: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+        },
+        ampm: false,
+        onChange: function(date) {
+            
+            year = date.getFullYear().toString();
+            month = ('0' + (date.getMonth() + 1)).slice(-2);
+            day = ('0' + date.getDate()).slice(-2);
+            hour = ('0' + date.getHours()).slice(-2);
+            min = ('0' + date.getMinutes()).slice(-2);
+
+            date_str = year + "-" + month + "-" + day + " " + hour +":" + min + ":00";
+            
+            $('#add_safe_point_form [name=team_sp_date]').val(date_str);
+            $('#calendar_display').text(date_str);
+
+        }
+    });
+
     $(document).ready(function() {
         
         $('#team_select').on('change', function() {
 
-            location.href = '/fm/view_safe_point_team/' + this.value;
+            location.href = '/fm/view_safe_point_team/' + this.value + '/<?= $target_time->getTimestamp() ?>';
 
         });
 
-        $('button.add_point').click(function() {
+        //안전점수 추가
+        $('#add_safe_point').click(function() {
+            
+            var now = new Date();
+            now = now.getFullYear() + '-' + ('0'+(now.getMonth()+1)).slice(-2) + '-' + ('0'+now.getDate()).slice(-2) + ' ' + ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2) + ":" + ('0'+now.getSeconds()).slice(-2);
 
+            $('#calendar_display').text(now);
+            $('#inline_calendar').calendar('set date', now);
+            $('#inline_calendar').calendar('set mode', 'day');
+            $('#add_safe_point_form [name=team_sp_date]').val(now);
             $('#add_safe_point_modal').modal('show');
 
         });
-        
-        $('tr.edit_point').click(function() {
+        $('.add_safe_point_item').click(function() {
+            
+            $('#add_safe_point_form [name=sp_id]').val($(this).data('spid'));
+            $('#add_safe_point_form').submit();
 
-            $('#team_safe_point_id').val($(this).data('tspid'));
+        });
+
+        //안전점수 수정 
+        $('.edit_safe_point').click(function() {
+
+            $('#edit_safe_point_form [name=team_sp_id]').val($(this).data('tspid'));
 
             $('#edit_safe_point_modal').modal('show');
 
         });
+        $('.edit_safe_point_item').click(function() {
 
-        $('.item.safe_point').click(function() {
-
-            $('#new_safe_point_id').val($(this).data('spid'));
-
+            $('#edit_safe_point_form [name=sp_id]').val($(this).data('spid'));
             $('#edit_safe_point_form').submit();
 
         });

@@ -114,7 +114,8 @@
             <?php endif ?>
 
             $('.ui.dropdown').dropdown();
-
+            $('.ui.checkbox').checkbox();
+            
         </script>
 
         <?= $this->renderSection('custom_js') ?>

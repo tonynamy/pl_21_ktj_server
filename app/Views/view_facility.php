@@ -7,19 +7,24 @@
     <div style="width:fit-content; margin:0 auto; padding:16px;">
         <div class="uiframe" style="width:2600px;">
             
-            <div style="display:flex; align-items:center; padding:16px;">
-                <i class="hamburger icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
-                <select id="mode_select" class="ui dropdown">
-                    <option value="1" selected> 도면있는 작업 조회 </option>
-                    <option value="2"> 도면없는 작업 조회 </option>
-                </select>
+            <div id="title_bar" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; padding:16px;">
+                    <i class="hamburger icon" onclick="location.href='/fm/menu'" style="cursor: pointer;"></i>
+                    <select id="mode_select" class="ui dropdown">
+                        <option value="1" selected> 도면있는 작업 조회 </option>
+                        <option value="2"> 도면없는 작업 조회 </option>
+                    </select>
+                </div>
+                <?php if($user_level != -1) : ?>
+                    <button class="filletbutton" type="button" onclick="location.href='/fm/download_facility'">엑셀로 저장</button>
+                <?php endif ?>
             </div>
 
             <div style="height:1px; background-color:#e8e9e9;"></div>
 
             <div style="padding:16px">
 
-                <div style="display:flex;">
+                <div style="display:flex; align-items:center;">
 
                     <div style="display:flex; align-items:center; margin-right:16px;">
                         <form action="" method="POST">
@@ -56,30 +61,34 @@
                         </div>
                     </div>
 
-                    <div style="display:flex; align-items:center;">
+                    <!--div style="display:flex; align-items:center;">
                         <label style="width:fit-content; margin-right:8px;">사용업체</label>
                         <div style="width:200px">
                             <select class="ui fluid dropdown" name="subcontractor">
 
                                 <option value=""></option>
                                 
-                                <?php $old_subcontractor = old('subcontractor') ?>
+                                <?php /*$old_subcontractor = old('subcontractor') ?>
 
                                 <?php foreach($subcontractors as $subcontractor) : ?>
 
                                     <option value="<?= $subcontractor ?>"    <?= $subcontractor == $old_subcontractor ? "SELECTED" : "" ?>    > <?= $subcontractor ?> </option>
 
-                                <?php endforeach ?>
+                                <?php endforeach */ ?>
 
                             </select>
                         </div>
-                    </div>
+                    </div -->
 
+                    <?php $facilities_count = count($facilities); ?>
+                    <span style="margin-left:8px">총: <?= $facilities_count ?>개</span>
+                    
                 </div>
 
-                <?php $facilities_count = count($facilities); ?>
-
-                <p style="margin-top:16px; margin-bottom:8px">총: <?= $facilities_count ?>개</p>
+                
+                <div style="margin-top:32px; margin-bottom:8px;">
+                    <span>※컬럼명을 클릭시 오름차순과 내림차순으로 정렬할 수 있습니다.</span>
+                </div>
 
                 <div>
 
@@ -118,6 +127,7 @@
                         <?php foreach($facilities as $facility) : ?>
 
                             <?php
+                                /*
                                 //공종
                                 switch($facility['type']) {
                                     case "1":
@@ -129,7 +139,7 @@
                                     default:
                                         $type_string = "기타"; break;
                                 }
-
+                                */
                                 //길이에 따라 글자크기 바꿈
                                 $serial_fontsize = mb_strlen($facility['serial'],'utf-8') > 14 ? "font-size:small;" : "";
                                 $super_manager_fontsize = mb_strlen($facility['super_manager'],'utf-8') > 6 ? "font-size:small;" : "";
@@ -205,9 +215,9 @@
 
                             ?>
 
-                            <tr class="facility select" data-id="<?= $is_guest ? -1 : $facility['id'] ?>" align="center">
+                            <tr class="facility select" data-serial="<?= $facility['serial'] ?>" data-state="<?= $state ?>" align="center">
                                 <td style="height: 52px; <?= $serial_fontsize ?>"><?= $facility['serial'] ?></td>
-                                <td><?= $type_string ?></td>
+                                <td><?=getTypeText($facility['type'])?></td>
                                 <td style=<?= $super_manager_fontsize ?>><?= $facility['super_manager'] ?></td>
                                 <td style=<?= $subcontractor_fontsize ?>><?= $facility['subcontractor'] ?></td>
                                 <td style=<?= $building_fontsize ?>><?= $facility['building'] ?></td>
@@ -256,6 +266,9 @@
 
     $(document).ready(function() {
         
+        var window_width = screen.width;
+        $('#title_bar').width(window_width-32);
+
         $('#mode_select').val(1);
         $('#mode_select').on('change', function() {
             if(this.value == 2) {
@@ -267,18 +280,18 @@
 
             arr = this.value.split(",");
             arr.sort();
-            state_num = arr.join("");
-            location.href = '/fm/view_facility/' + state_num;
+            filter_key = arr.join("");
+            location.href = '/fm/view_facility/' + filter_key;
 
         });
 
         $('tr.facility.select').click(function() {
 
-            var id = $(this).data('id');
+            var serial = $(this).data('serial');
+            var state = $(this).data('state');
+            var filter = state.replaceAll(',', '');
 
-            if(id < 0) return;
-
-            location.href = '/fm/view_facility_info/' + id;
+            location.href = '/fm/view_facility_info/' + serial + '/' + filter;
 
         });
 

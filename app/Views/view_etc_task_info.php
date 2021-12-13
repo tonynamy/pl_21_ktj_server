@@ -18,7 +18,6 @@
 
                     <div>
                         <button id="task_change_team" class="filletbutton" type="button" style="margin-right:4px"><?= $progress == 0 ? "작업팀변경" : "작업기록팀변경" ?></button>
-                        <button id="task_add" class="filletbutton" type="button" style="margin-right:4px">작업기록추가</button>
                         <?php if($progress == 1) : ?>
                             <button id="task_finish" class="filletbutton" type="button" style="margin-right:4px">작업완료</button>
                         <?php endif ?>
@@ -29,6 +28,14 @@
                 <div style="margin-top:16px;">
                     <table style="width:100%;">
 
+                        <tr>
+                            <td>※작업내역</td>
+                            <?php if(count($etc_tasks) > 0) : ?>
+                                <td colspan="3"></td>
+                            <?php endif ?>
+                        </tr>
+                        
+
                         <?php foreach($etc_tasks as $etc_task) : ?>
                             <tr>
                                 <td style="width:200px"><?= $etc_task['created_at'] ?></td>
@@ -38,6 +45,12 @@
                             </tr>
                         <?php endforeach ?>
 
+                        <tr>
+                            <?php if(count($etc_tasks) > 0) : ?>
+                                <td colspan="3"></td>
+                            <?php endif ?>
+                            <td><span id="task_add" style="color:blue; cursor:pointer;">[추가]</span></td>
+                        </tr>
                     </table>
             
                 </div>
@@ -45,7 +58,6 @@
 
             </div>
         </div>
-        
     </form>
 
     <!-- 팀변경 modal -->
@@ -79,39 +91,6 @@
             <input type="hidden" name="task_name" value="<?= $task_name ?>">
             <input type="hidden" name="old_team_id" value="<?= $this_team['id'] ?>">
         </form>
-
-    </div>
-
-    <!-- 작업기록추가 modal -->
-    <div id="task_add_modal" class="ui mini modal">
-
-        <form id="task_add_form" class="ui form" method="POST" action="/fm/add_etc_task">
-            <div style="padding:16px;">
-
-                <div style="margin-top:4px;">
-                    <label>작업일시</label>
-                    <div style="margin-top:4px">※선택하지 않을시 오늘 오전 07시로 선택됩니다.</div>
-                    <div class="ui calendar" id="inline_calendar" style="margin-top:4px"></div>
-                    <input type="hidden" name="task_calendar" value="0">
-
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px">
-                    <label>작업인원</label>
-                    <div class="ui input" style="width:250px;">
-                        <input type="number" min="1" name="manday" placeholder="0을 포함하지 않는 자연수" value="1">
-                    </div>
-                </div>
-                <div class="actions" style="text-align:right; margin-top:24px; margin-bottom:4px">
-                    <span class="cancel" style="color:#5599DD; cursor:pointer; margin-right:32px;">취소</span>
-                    <span id="task_add_submit" style="color:#5599DD; cursor:pointer;">추가</span>
-                </div>
-
-            </div>
-
-            <input type="hidden" name="task_name" value="<?= $task_name ?>">
-            <input type="hidden" name="team_id"  value="<?= $this_team['id'] ?>">
-        </form>
-
     </div>
 
     <!-- 작업완료 modal -->
@@ -131,7 +110,6 @@
             <input type="hidden" name="task_name" value="<?= $task_name ?>">
             <input type="hidden" name="team_id" value="<?= $this_team['id'] ?>">
         </form>
-
     </div>
 
     <!-- 작업삭제 modal -->
@@ -151,7 +129,6 @@
             <input type="hidden" name="task_name" value="<?= $task_name ?>">
             <input type="hidden" name="team_id" value="<?= $this_team['id'] ?>">
         </form>
-
     </div>
 
     <!-- 작업기록 수정 modal -->
@@ -162,7 +139,7 @@
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px">
                     <label>작업일시</label>
-                    <div id="task_edit_date" style="width:270px">2021-10-29 13:31:42</div>
+                    <div id="task_edit_date" style="width:270px">작업일시</div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:28px">
                     <label>작업팀</label>
@@ -170,9 +147,7 @@
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px">
                     <label>작업인원</label>
-                    <div class="ui input" style="width:270px">
-                        <input id="input_task_edit_manday" type="number" min="0" name="manday" placeholder="0을 포함하는 자연수">
-                    </div>
+                    <input id="input_task_edit_manday" type="number" min="0" name="manday" placeholder="0을 포함하는 자연수" style="width:270px">
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-top:24px; margin-bottom:4px">
                     <span id="task_delete_submit2" style="color:#5599DD; cursor:pointer;">작업기록 삭제</span>
@@ -187,8 +162,43 @@
             <input type="hidden" name="task_id">
             <input type="hidden" name="team_id" value="<?= $this_team['id'] ?>">
         </form>
-
     </div>
+
+    <!-- 작업기록추가 modal -->
+    <div id="task_add_modal" class="ui mini modal">
+
+        <form id="task_add_form" class="ui form" method="POST" action="/fm/add_etc_task">
+            <div style="padding:16px;">
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                    <label>작업일시</label>
+                    <div id="calendar_display" style="width:270px">1</div>
+                </div>
+
+                <div class="ui calendar" id="inline_calendar" style="margin-top:4px"></div>
+                <input type="hidden" name="task_calendar" value="0">
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px">
+                    <?php
+                        $attendance = $this_team['attendance'] != 0 ? $this_team['attendance'] : 1;
+                    ?>
+                    <label>작업인원</label>
+                    <div class="ui input" style="width:250px;">
+                        <input type="number" min="1" name="manday" placeholder="0을 포함하지 않는 자연수" value="<?= $attendance ?>">
+                    </div>
+                </div>
+                <div class="actions" style="text-align:right; margin-top:24px; margin-bottom:4px">
+                    <span class="cancel" style="color:#5599DD; cursor:pointer; margin-right:32px;">취소</span>
+                    <span id="task_add_submit" style="color:#5599DD; cursor:pointer;">추가</span>
+                </div>
+
+            </div>
+
+            <input type="hidden" name="task_name" value="<?= $task_name ?>">
+            <input type="hidden" name="team_id"  value="<?= $this_team['id'] ?>">
+        </form>
+    </div>
+
 
 <?= $this->endSection() ?>
 
@@ -200,7 +210,7 @@
         $('#inline_calendar').calendar({
             type: 'datetime',
             text: {
-                months: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+                months: ['1월,', '2월,', '3월,', '4월,', '5월,', '6월,', '7월,', '8월,', '9월,', '10월,', '11월,', '12월,'],
                 monthsShort: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
             },
             ampm: false,
@@ -215,13 +225,14 @@
                 date_str = year + "-" + month + "-" + day + " " + hour +":" + min + ":00";
                 
                 $('#task_add_form [name=task_calendar]').val(date_str);
+                $('#calendar_display').text(date_str);
 
             }
         });
             
         $(document).ready(function() {
             
-            //작업팀기록변경
+            //작업기록팀변경
             $('#task_change_team').click(function() {
 
                 $('#task_change_team_modal').modal('setting', {
@@ -235,18 +246,6 @@
 
             });
         
-            //작업기록추가
-            $('#task_add').click(function() {
-
-                $('#task_add_modal').modal('show');
-
-            });
-            $('#task_add_submit').click(function() {
-
-                $('#task_add_form').submit();
-
-            });
-
             //작업완료
             $('#task_finish').click(function() {
 
@@ -294,6 +293,23 @@
             $('#task_edit_submit').click(function() {
 
                 $('#task_edit_form').submit();
+
+            });
+
+            //작업기록추가
+            $('#task_add').click(function() {
+
+                var now = new Date();
+                now = now.getFullYear() + '-' + ('0'+(now.getMonth()+1)).slice(-2) + '-' + ('0'+now.getDate()).slice(-2) + ' ' + ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2) + ":" + ('0'+now.getSeconds()).slice(-2);
+
+                $('#inline_calendar').calendar('set date', now);
+                $('#inline_calendar').calendar('set mode', 'day');
+                $('#task_add_modal').modal('show');
+
+            });
+            $('#task_add_submit').click(function() {
+
+                $('#task_add_form').submit();
 
             });
 

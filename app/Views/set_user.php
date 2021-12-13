@@ -70,33 +70,11 @@
             </div>
 
             <input type="hidden" name="user_id">
+            <input type="hidden" name="user_delete">
 
         </form>
 
     </div>
-
-    <!-- 직원등급수정 modal 
-    <div id="edit_user_level_modal" class="ui mini modal">
-
-        <div style="padding-top:4px; padding-bottom:4px">
-
-            <div style="font-size:large; padding:16px;">김두한 직원등급</div>
-            <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">최고관리자</div>
-            <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">관리자</div>
-            <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">팀장</div>
-            <div class="item user_level_change" data-id="<?= $user['id'] ?>" style="padding:16px; cursor:pointer;">대기자</div>
-            <div class="actions" style="float:right; padding:16px">
-                <span class="cancel" style="color:#5599DD; cursor:pointer;">취소</span>
-            </div>
-
-        </div>
-        
-        <form id="edit_user_level_form" class="ui form" method="POST" action="">
-            <input id="edit_user_level" type="hidden" name="user_level" />
-        </form>
-
-    </div>
-    -->
 
 <?= $this->endSection() ?>
 
@@ -130,7 +108,7 @@
         });
         $('#delete_user_submit').click(function() {
 
-            $('#edit_user_info_form [name=new_birthday]').val("-1");
+            $('#edit_user_info_form [name=user_delete]').val("true");
             $('#edit_user_info_form').submit();
         });
 

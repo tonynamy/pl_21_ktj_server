@@ -48,7 +48,7 @@ class Authentication
 
     public function login($place_id, $username, $birthday) {
 
-		$row = $this->model->groupstart()
+      $row = $this->model->groupstart()
                             ->orwhere('place_id', null)
                             ->orwhere('place_id', $place_id)
                             ->groupEnd()
@@ -57,10 +57,10 @@ class Authentication
         
         $this->login_place_id = $place_id;    //추가
 
-		if(is_null($row)) {
+      if(is_null($row)) {
             $this->onLoginFailed();
-			return false;
-		}
+         return false;
+      }
         
         $this->onLoginSuccess($row['id']);
 
@@ -93,6 +93,14 @@ class Authentication
 
     public function level() {
         return $this->user['level'];
+    }
+
+    public function username() {
+        return $this->user['username'];
+    }
+
+    public function birthday() {
+        return $this->user['birthday'];
     }
 
     public function createJWT($guest=false, $supermanager="") {
